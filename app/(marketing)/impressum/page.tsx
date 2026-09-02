@@ -34,7 +34,7 @@ export default function ImpressumPage() {
           </p>
 
           <h2>Vertreten durch</h2>
-          <p>Katharina Voßwinkel, Geschäftsführerin</p>
+          <p>Marlene Hoffstett, Geschäftsführerin</p>
 
           <h2>Kontakt</h2>
           <p>
@@ -68,7 +68,7 @@ export default function ImpressumPage() {
 
           <h2>Redaktionell verantwortlich</h2>
           <p>
-            Katharina Voßwinkel, Anschrift wie oben.
+            Marlene Hoffstett, Anschrift wie oben.
           </p>
 
           <h2>EU-Streitschlichtung</h2>

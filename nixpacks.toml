@@ -1,0 +1,29 @@
+# Nixpacks-Konfiguration fuer Coolify.
+#
+# Hinweis zur pnpm-Installation (uebernommen aus einem bereits laufenden
+# Projekt auf demselben Server): Das in Nixpacks enthaltene corepack (0.24.1)
+# erzeugt einen pnpm-Shim, der unter Node 22 abstuerzt
+# (ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING). pnpm wird daher direkt ueber npm
+# installiert und in spaeteren Phasen mit absolutem Pfad aufgerufen, da jede
+# Phase in einer eigenen Shell laeuft.
+# pnpm 11 setzt Node >= 22.13 voraus; der von Nixpacks gepinnte nixpkgs-Stand
+# liefert nur nodejs_22 (22.11) – deshalb pnpm 10.
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "openssl"]
+
+[phases.install]
+dependsOn = ["setup"]
+cmds = [
+  "npm install -g pnpm@10.20.0 --prefix /usr/local && /usr/local/bin/pnpm install --frozen-lockfile"
+]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = [
+  "/usr/local/bin/pnpm exec prisma generate",
+  "/usr/local/bin/pnpm run build"
+]
+
+[start]
+cmd = "/usr/local/bin/pnpm run start:prod"

@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Schlankes Laufzeit-Abbild fuer den Container-Betrieb
-  output: "standalone",
   images: {
     // Platzhalter-Bildquelle fuer die Demo-Daten.
     // Erweiterungspunkt: Bei Umstellung auf lokale Uploads oder Object Storage
