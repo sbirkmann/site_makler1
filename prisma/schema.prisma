@@ -1,0 +1,364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum MarketingType {
+  KAUF
+  MIETE
+}
+
+enum PropertyType {
+  HAUS
+  WOHNUNG
+  MEHRFAMILIENHAUS
+  GRUNDSTUECK
+  GEWERBE
+}
+
+enum PropertyStatus {
+  VERFUEGBAR
+  RESERVIERT
+  VERKAUFT
+  VERMIETET
+  IN_VORBEREITUNG
+}
+
+enum EnergyCertificateType {
+  VERBRAUCHSAUSWEIS
+  BEDARFSAUSWEIS
+  NICHT_ERFORDERLICH
+}
+
+enum EnergyEfficiencyClass {
+  A_PLUS
+  A
+  B
+  C
+  D
+  E
+  F
+  G
+  H
+}
+
+enum HeatingType {
+  GAS
+  OEL
+  FERNWAERME
+  WAERMEPUMPE
+  PELLET
+  SOLAR
+  BLOCKHEIZKRAFTWERK
+  ELEKTRO
+}
+
+enum PropertyCondition {
+  NEUWERTIG
+  SANIERT
+  GEPFLEGT
+  RENOVIERUNGSBEDUERFTIG
+  ABRISSOBJEKT
+}
+
+enum SellingIntent {
+  BALD_VERKAUFEN
+  INFORMIEREN
+  PROFESSIONELLE_BEWERTUNG
+  KONKRETES_OBJEKT
+}
+
+enum RequestStatus {
+  NEU
+  IN_BEARBEITUNG
+  KONTAKTIERT
+  ABGESCHLOSSEN
+}
+
+enum LeadSource {
+  OBJEKTANFRAGE
+  VERKAUFSFUNNEL
+  BEWERTUNGSFUNNEL
+  KONTAKTFORMULAR
+}
+
+// ---------------------------------------------------------------------------
+// Immobilien
+// ---------------------------------------------------------------------------
+
+model Property {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  title            String
+  shortDescription String
+  description      String        @db.Text
+
+  marketingType    MarketingType
+  propertyType     PropertyType
+  status           PropertyStatus @default(VERFUEGBAR)
+
+  price            Decimal?      @db.Decimal(12, 2)
+  currency         String        @default("EUR")
+  priceOnRequest   Boolean       @default(false)
+  // Bei Mietobjekten: Nebenkosten / Kaution optional
+  serviceCharge    Decimal?      @db.Decimal(10, 2)
+
+  livingArea       Float?
+  plotArea         Float?
+  usableArea       Float?
+  rooms            Float?
+  bedrooms         Int?
+  bathrooms        Int?
+  yearBuilt        Int?
+  condition        PropertyCondition?
+
+  energyCertificateType EnergyCertificateType?
+  energyEfficiencyClass EnergyEfficiencyClass?
+  energyConsumption     Float?
+  heatingType           HeatingType?
+
+  street     String?
+  zipCode    String
+  city       String
+  region     String?
+  country    String  @default("Deutschland")
+  latitude   Float?
+  longitude  Float?
+
+  // Freitext-Listen
+  highlights String[] @default([])
+  features   String[] @default([])
+  locationDescription String? @db.Text
+
+  featured    Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  images    PropertyImage[]
+  documents PropertyDocument[]
+  leads     Lead[]
+
+  @@index([marketingType, propertyType])
+  @@index([city])
+  @@index([featured])
+  @@index([publishedAt])
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  url        String
+  alt        String
+  sortOrder  Int      @default(0)
+  isCover    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId, sortOrder])
+}
+
+model PropertyDocument {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  title      String
+  url        String
+  kind       String   @default("EXPOSE") // EXPOSE | GRUNDRISS | ENERGIEAUSWEIS
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+// ---------------------------------------------------------------------------
+// Team
+// ---------------------------------------------------------------------------
+
+model Agent {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  firstName String
+  lastName  String
+  role      String
+  email     String
+  phone     String?
+  imageUrl  String?
+  bio       String?  @db.Text
+  focus     String[] @default([])
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  properties Property[]
+  leads      Lead[]
+  blogPosts  BlogPost[] @relation("BlogAuthor")
+}
+
+// ---------------------------------------------------------------------------
+// Anfragen
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id        String        @id @default(cuid())
+  source    LeadSource
+  status    RequestStatus @default(NEU)
+
+  firstName String?
+  lastName  String
+  email     String
+  phone     String?
+  message   String?       @db.Text
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  privacyAccepted Boolean @default(false)
+  internalNote    String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([source])
+}
+
+model ValuationRequest {
+  id     String        @id @default(cuid())
+  status RequestStatus @default(NEU)
+  // BEWERTUNG (Immobilienbewertung) oder VERKAUF (Verkaufsfunnel)
+  funnel String        @default("BEWERTUNG")
+
+  propertyType PropertyType
+  street       String?
+  zipCode      String
+  city         String
+
+  livingArea Float?
+  plotArea   Float?
+  rooms      Float?
+  yearBuilt  Int?
+  condition  PropertyCondition?
+
+  sellingIntent SellingIntent?
+
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  message   String? @db.Text
+
+  privacyAccepted Boolean @default(false)
+
+  // Ergebnis einer (spaeteren) externen Bewertungs-API
+  estimatedValueMin Decimal? @db.Decimal(12, 2)
+  estimatedValueMax Decimal? @db.Decimal(12, 2)
+  valuationProvider String?
+
+  internalNote String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model ContactRequest {
+  id      String        @id @default(cuid())
+  status  RequestStatus @default(NEU)
+  subject String?
+
+  firstName String?
+  lastName  String
+  email     String
+  phone     String?
+  message   String        @db.Text
+
+  privacyAccepted Boolean @default(false)
+  internalNote    String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Bewertungen / Content
+// ---------------------------------------------------------------------------
+
+model Review {
+  id           String   @id @default(cuid())
+  authorName   String
+  initials     String
+  rating       Int
+  title        String?
+  body         String   @db.Text
+  city         String?
+  propertyType PropertyType?
+  serviceType  String? // Verkauf | Kauf | Vermietung | Bewertung
+  published    Boolean  @default(true)
+  isDemo       Boolean  @default(true)
+  reviewedAt   DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([published, reviewedAt])
+}
+
+model BlogCategory {
+  id    String @id @default(cuid())
+  slug  String @unique
+  name  String
+  description String?
+  posts BlogPost[]
+}
+
+model BlogPost {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  excerpt    String
+  content    String   @db.Text
+  coverImage String?
+  readingMinutes Int   @default(5)
+
+  categoryId String?
+  category   BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  authorId String?
+  author   Agent?  @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  seoTitle       String?
+  seoDescription String?
+
+  published   Boolean   @default(true)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([published, publishedAt])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  email     String
+  label     String
+  query     Json
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}

@@ -1,0 +1,25 @@
+# PostgreSQL fuer die lokale Entwicklung.
+# Start:  podman compose -f podman-compose.yml up -d
+#     or: podman-compose up -d
+services:
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: makler_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: makler
+      POSTGRES_PASSWORD: makler
+      POSTGRES_DB: makler
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5471:5432"
+    volumes:
+      - makler_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U makler -d makler"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  makler_pgdata: {}
