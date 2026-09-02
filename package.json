@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "prisma generate && next build",
+    "start": "prisma migrate deploy && node scripts/seed-if-empty.mjs && next start",
     "lint": "eslint",
     "db:up": "podman compose -f podman-compose.yml up -d",
     "db:down": "podman compose -f podman-compose.yml down",
@@ -14,8 +14,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "typecheck": "tsc --noEmit",
-    "start:prod": "prisma migrate deploy && node scripts/seed-if-empty.mjs && next start"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -23,7 +22,8 @@
     "prisma": "^6.19.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "^4.5.4"
+    "zod": "^4.5.4",
+    "tsx": "^4.23.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -34,7 +34,6 @@
     "eslint-config-next": "16.3.4",
     "playwright": "^1.62.1",
     "tailwindcss": "^4",
-    "tsx": "^4.23.13",
     "typescript": "^5"
   },
   "prisma": {

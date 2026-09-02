@@ -13,7 +13,7 @@ try {
     console.log(`→ Bereits ${count} Objekte vorhanden – Seed übersprungen.`);
   } else {
     console.log("→ Datenbank ist leer, Demo-Daten werden eingespielt …");
-    execSync("pnpm exec tsx prisma/seed.ts", { stdio: "inherit" });
+    execSync("npx tsx prisma/seed.ts", { stdio: "inherit" });
   }
 } catch (error) {
   console.error("→ Seed-Prüfung fehlgeschlagen:", error.message);
