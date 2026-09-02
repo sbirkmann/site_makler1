@@ -1,4 +1,20 @@
 /**
+ * Basis-URL robust bestimmen: Ein fehlender oder unvollstaendiger Wert
+ * (z. B. weil die Variable im Build-Container nicht gesetzt ist) darf den
+ * Build nicht abbrechen – `new URL()` in den Metadaten wuerde sonst werfen.
+ */
+function resolveSiteUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return "http://localhost:3000";
+  const withProtocol = /^https?:\/\//.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(withProtocol).origin;
+  } catch {
+    return "http://localhost:3000";
+  }
+}
+
+/**
  * Zentrale Marken- und Standortdaten.
  * Fuer ein neues Maklerprojekt reicht es, diese Datei anzupassen.
  */
@@ -9,7 +25,7 @@ export const site = {
   legalName: "WohnWert Immobilien GmbH",
   description:
     "Persoenliche Immobilienberatung fuer Koeln, Bonn und das Rheinland. Verkauf, Vermietung und kostenlose Immobilienbewertung mit echter Marktkenntnis.",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  url: resolveSiteUrl(),
   locale: "de_DE",
   founded: 2009,
   address: {
