@@ -1,32 +1,27 @@
-# In Coolify als Docker-Compose-Quelle verwenden. Diese Volumes bleiben über
-# Redeployments erhalten: Datenbank, FTP-Eingang und alle hochgeladenen Bilder.
+# In Coolify als Docker-Compose-Quelle verwenden. Nutzt die bereits bestehende
+# externe Postgres-Datenbank (DATABASE_URL) statt eine eigene zu starten.
+# Diese Volumes bleiben über Redeployments erhalten: FTP-Eingang und alle
+# hochgeladenen Bilder. SFTPGo nutzt dieselbe Datenbank für seinen eigenen
+# Namespace (eigene Tabellen, kein Konflikt mit dem App-Schema).
 services:
   app:
     build: .
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://makler:${POSTGRES_PASSWORD}@postgres:5432/makler?schema=public
+      DATABASE_URL: ${DATABASE_URL}
       UPLOAD_DIR: /app/public/uploads
       SFTPGO_API_URL: http://sftpgo:8080
-    depends_on: [postgres, sftpgo]
+    depends_on: [sftpgo]
     volumes: ["uploads:/app/public/uploads"]
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: makler
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: makler
-    volumes: ["postgres:/var/lib/postgresql/data"]
   sftpgo:
     image: drakkan/sftpgo:v2.6.6
     restart: unless-stopped
     environment:
       SFTPGO_DATA_PROVIDER__DRIVER: postgresql
-      SFTPGO_DATA_PROVIDER__HOST: postgres
+      SFTPGO_DATA_PROVIDER__HOST: ${POSTGRES_HOST}
       SFTPGO_DATA_PROVIDER__PORT: "5432"
-      SFTPGO_DATA_PROVIDER__NAME: makler
-      SFTPGO_DATA_PROVIDER__USERNAME: makler
+      SFTPGO_DATA_PROVIDER__NAME: ${POSTGRES_DB}
+      SFTPGO_DATA_PROVIDER__USERNAME: ${POSTGRES_USER}
       SFTPGO_DATA_PROVIDER__PASSWORD: ${POSTGRES_PASSWORD}
       SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "true"
       SFTPGO_DEFAULT_ADMIN_USERNAME: ${SFTPGO_ADMIN_USERNAME}
@@ -40,16 +35,14 @@ services:
   openimmo-importer:
     build: .
     restart: unless-stopped
-    depends_on: [postgres]
     environment:
-      DATABASE_URL: postgresql://makler:${POSTGRES_PASSWORD}@postgres:5432/makler?schema=public
+      DATABASE_URL: ${DATABASE_URL}
       IMPORT_DIR: /imports
       UPLOAD_DIR: /uploads
       WORKER_CONCURRENCY: "3"
       LOOP_DELAY: "20000"
     volumes: ["ftp-imports:/imports", "uploads:/uploads"]
-    command: ["pnpm", "import:openimmo"]
+    command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm import:openimmo"]
 volumes:
-  postgres: {}
   ftp-imports: {}
   uploads: {}
