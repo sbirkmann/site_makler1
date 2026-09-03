@@ -1,0 +1,69 @@
+# Coolify deployment template (dev).
+# - Use this file as reference when adding environment variables and persistent
+#   volumes in Coolify. Do NOT store real secrets in git; add them in Coolify's
+#   secret manager and reference them here.
+
+# Required secrets (suggested names in Coolify):
+# - POSTGRES_PASSWORD
+# - ADMIN_PASSWORD
+# - ADMIN_SESSION_SECRET
+# - SFTPGO_ADMIN_USERNAME
+# - SFTPGO_ADMIN_PASSWORD
+# - OPTIONAL: BLOG_API_KEY (if you want an API-key-based blog import)
+
+# Environment variables to set for the `app` service (example names):
+services:
+  app:
+    environment:
+      DATABASE_URL: "postgresql://makler:${POSTGRES_PASSWORD}@postgres:5432/makler?schema=public"
+      NEXT_PUBLIC_SITE_URL: "https://your-site.example"
+      ADMIN_EMAIL: "admin@your-site.example"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      ADMIN_SESSION_SECRET: "${ADMIN_SESSION_SECRET}"
+      SFTPGO_API_URL: "http://sftpgo:8080"
+      SFTPGO_ADMIN_USERNAME: "${SFTPGO_ADMIN_USERNAME}"
+      SFTPGO_ADMIN_PASSWORD: "${SFTPGO_ADMIN_PASSWORD}"
+      # optional runtime tuning for the importer worker
+      WORKER_CONCURRENCY: "3"
+      LOOP_DELAY: "20000"
+      # optional blog API key (the app persists blog API settings in the DB,
+      # but providing an initial API key via env can be convenient)
+      BLOG_API_KEY: "${BLOG_API_KEY}"
+
+    # Optional: values for using the Coolify API from deploy scripts.
+    # NOTE: Do NOT commit real tokens to the repository. This section is a
+    # placeholder to help you store the values locally or in your CI/CD secrets.
+    # Use the values below only when you manage the file outside version control.
+    # Example usage for scripts: export COOLIFY_HOST and COOLIFY_TOKEN from a
+    # secure location before running any API calls.
+    #
+    # COOLIFY_HOST: https://coolify.example
+    # COOLIFY_TOKEN: ey...your_token_here...
+
+# Volumes to create in Coolify (persistent):
+volumes:
+  - name: postgres
+    persistent: true
+  - name: ftp-imports
+    persistent: true
+  - name: uploads
+    persistent: true
+
+# How to wire this in Coolify:
+# 1) In the Coolify app, use this repository as Docker-Compose source and point
+#    it at `docker-compose.coolify.yml`.
+# 2) Create the three persistent volumes above and map them to the service
+#    volumes referenced in `docker-compose.coolify.yml` (`postgres`,
+#    `ftp-imports`, `uploads`).
+# 3) Add the required secrets in Coolify (names suggested above) and set them
+#    as environment variables for the `app` and `sftpgo` services as necessary.
+# 4) The `sftpgo` service included in `docker-compose.coolify.yml` will expose
+#    the SFTP API internally; keep `SFTPGO_API_URL` pointing to `http://sftpgo:8080`.
+# 5) The `openimmo-importer` service runs the worker automatically (it executes
+#    `pnpm import:openimmo`) and uses `WORKER_CONCURRENCY` / `LOOP_DELAY`.
+
+# Notes:
+# - The application stores blog-API settings in the DB via the admin UI
+#   (`/admin/schnittstellen`). You can pre-seed an API key via the `BLOG_API_KEY`
+#   env var if you prefer.
+# - Ensure ports/ingress and secrets in Coolify follow your security policies.

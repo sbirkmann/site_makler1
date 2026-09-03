@@ -21,5 +21,45 @@ services:
       timeout: 5s
       retries: 10
 
+  sftpgo:
+    image: docker.io/drakkan/sftpgo:v2.6.6
+    container_name: makler_sftpgo
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SFTPGO_DATA_PROVIDER__DRIVER: postgresql
+      SFTPGO_DATA_PROVIDER__HOST: postgres
+      SFTPGO_DATA_PROVIDER__PORT: "5432"
+      SFTPGO_DATA_PROVIDER__NAME: makler
+      SFTPGO_DATA_PROVIDER__USERNAME: makler
+      SFTPGO_DATA_PROVIDER__PASSWORD: makler
+      SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "true"
+      SFTPGO_DEFAULT_ADMIN_USERNAME: ${SFTPGO_ADMIN_USERNAME:-makler-admin}
+      SFTPGO_DEFAULT_ADMIN_PASSWORD: ${SFTPGO_ADMIN_PASSWORD:-change-me-in-env}
+      SFTPGO_FTPD__BINDINGS__0__PORT: "2121"
+      SFTPGO_FTPD__PASSIVE_PORT_RANGE__START: "50000"
+      SFTPGO_FTPD__PASSIVE_PORT_RANGE__END: "50010"
+      SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
+    ports: ["2121:2121", "50000-50010:50000-50010", "8088:8080"]
+    volumes: ["./storage/ftp-imports:/imports:Z"]
+
+  openimmo-importer:
+    build: .
+    container_name: makler_openimmo_importer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://makler:makler@postgres:5432/makler?schema=public
+      IMPORT_DIR: /imports
+      UPLOAD_DIR: /uploads
+      WORKER_CONCURRENCY: "3"
+      LOOP_DELAY: "20000"
+    volumes: ["./storage/ftp-imports:/imports:Z", "./storage/uploads:/uploads:Z"]
+    command: ["pnpm", "import:openimmo"]
+
 volumes:
   makler_pgdata: {}

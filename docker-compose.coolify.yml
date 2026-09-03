@@ -1,0 +1,55 @@
+# In Coolify als Docker-Compose-Quelle verwenden. Diese Volumes bleiben über
+# Redeployments erhalten: Datenbank, FTP-Eingang und alle hochgeladenen Bilder.
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://makler:${POSTGRES_PASSWORD}@postgres:5432/makler?schema=public
+      UPLOAD_DIR: /app/public/uploads
+      SFTPGO_API_URL: http://sftpgo:8080
+    depends_on: [postgres, sftpgo]
+    volumes: ["uploads:/app/public/uploads"]
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: makler
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: makler
+    volumes: ["postgres:/var/lib/postgresql/data"]
+  sftpgo:
+    image: drakkan/sftpgo:v2.6.6
+    restart: unless-stopped
+    environment:
+      SFTPGO_DATA_PROVIDER__DRIVER: postgresql
+      SFTPGO_DATA_PROVIDER__HOST: postgres
+      SFTPGO_DATA_PROVIDER__PORT: "5432"
+      SFTPGO_DATA_PROVIDER__NAME: makler
+      SFTPGO_DATA_PROVIDER__USERNAME: makler
+      SFTPGO_DATA_PROVIDER__PASSWORD: ${POSTGRES_PASSWORD}
+      SFTPGO_DATA_PROVIDER__CREATE_DEFAULT_ADMIN: "true"
+      SFTPGO_DEFAULT_ADMIN_USERNAME: ${SFTPGO_ADMIN_USERNAME}
+      SFTPGO_DEFAULT_ADMIN_PASSWORD: ${SFTPGO_ADMIN_PASSWORD}
+      SFTPGO_FTPD__BINDINGS__0__PORT: "2121"
+      SFTPGO_FTPD__PASSIVE_PORT_RANGE__START: "50000"
+      SFTPGO_FTPD__PASSIVE_PORT_RANGE__END: "50010"
+      SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
+    ports: ["2121:2121", "50000-50010:50000-50010"]
+    volumes: ["ftp-imports:/imports"]
+  openimmo-importer:
+    build: .
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      DATABASE_URL: postgresql://makler:${POSTGRES_PASSWORD}@postgres:5432/makler?schema=public
+      IMPORT_DIR: /imports
+      UPLOAD_DIR: /uploads
+      WORKER_CONCURRENCY: "3"
+      LOOP_DELAY: "20000"
+    volumes: ["ftp-imports:/imports", "uploads:/uploads"]
+    command: ["pnpm", "import:openimmo"]
+volumes:
+  postgres: {}
+  ftp-imports: {}
+  uploads: {}

@@ -3,6 +3,7 @@ import type { LeadSource } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { ContactInput, PropertyInquiryInput, ValuationInput } from "@/lib/validations/forms";
 import { valuationService } from "@/lib/services/valuation";
+import { pushLeadToConfiguredCrms } from "@/lib/services/lead-push";
 
 /** Objektanfrage von einer Immobilien-Detailseite. */
 export async function createPropertyLead(input: PropertyInquiryInput) {
@@ -15,7 +16,7 @@ export async function createPropertyLead(input: PropertyInquiryInput) {
     throw new Error("Die angefragte Immobilie ist nicht mehr verfügbar.");
   }
 
-  return prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: {
       source: "OBJEKTANFRAGE" satisfies LeadSource,
       firstName: input.firstName || null,
@@ -28,6 +29,8 @@ export async function createPropertyLead(input: PropertyInquiryInput) {
       privacyAccepted: true,
     },
   });
+  void pushLeadToConfiguredCrms("property_inquiry", { ...lead, propertyTitle: property.title });
+  return lead;
 }
 
 /** Verkaufs- und Bewertungsfunnel. */
@@ -92,6 +95,7 @@ export async function createValuationRequest(input: ValuationInput) {
     });
   }
 
+  void pushLeadToConfiguredCrms("valuation", { request, estimate });
   return { request, estimate };
 }
 
@@ -120,5 +124,6 @@ export async function createContactRequest(input: ContactInput) {
     },
   });
 
+  void pushLeadToConfiguredCrms("contact", contact);
   return contact;
 }

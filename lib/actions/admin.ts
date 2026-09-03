@@ -6,6 +6,8 @@ import type { RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { adminLoginSchema, adminPropertySchema } from "@/lib/validations/forms";
 import { createSession, destroySession, requireSession, verifyCredentials } from "@/lib/services/auth";
+import { createSftpGoUser, deleteSftpGoUser } from "@/lib/services/sftpgo";
+import { saveUploadedImage } from "@/lib/services/uploads";
 import type { FormState } from "@/lib/actions/form-state";
 
 function fieldErrors(error: { issues: { path: PropertyKey[]; message: string }[] }) {
@@ -191,4 +193,81 @@ export async function updateRequestStatusAction(formData: FormData) {
 
   revalidatePath("/admin/anfragen");
   revalidatePath("/admin");
+}
+
+export async function createFtpAccountAction(formData: FormData) {
+  await requireSession();
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  if (!/^[a-z0-9][a-z0-9_-]{2,63}$/.test(username) || password.length < 12) {
+    redirect("/admin/schnittstellen?ftp=ungueltig");
+  }
+  const homeDir = process.env.SFTPGO_IMPORT_DIR ?? "/imports";
+  try {
+    await createSftpGoUser(username, password, homeDir);
+    await prisma.ftpAccount.create({ data: { username, homeDir } });
+  } catch {
+    redirect("/admin/schnittstellen?ftp=fehler");
+  }
+  revalidatePath("/admin/schnittstellen");
+  redirect("/admin/schnittstellen?ftp=erstellt");
+}
+
+export async function deleteFtpAccountAction(formData: FormData) {
+  await requireSession();
+  const id = String(formData.get("id") ?? "");
+  const account = await prisma.ftpAccount.findUnique({ where: { id } });
+  if (!account) return;
+  await deleteSftpGoUser(account.username);
+  await prisma.ftpAccount.delete({ where: { id } });
+  revalidatePath("/admin/schnittstellen");
+}
+
+export async function saveLeadPushProvidersAction(formData: FormData) {
+  await requireSession();
+  const providers = ["ONOFFICE", "PROPSTACK", "FLOWFACT"];
+  await Promise.all(providers.map((provider) => prisma.leadPushProvider.upsert({
+    where: { provider },
+    create: {
+      provider,
+      enabled: formData.get(`${provider}_enabled`) === "on",
+      endpoint: String(formData.get(`${provider}_endpoint`) ?? "").trim() || null,
+      apiKey: String(formData.get(`${provider}_apiKey`) ?? "").trim() || null,
+    },
+    update: {
+      enabled: formData.get(`${provider}_enabled`) === "on",
+      endpoint: String(formData.get(`${provider}_endpoint`) ?? "").trim() || null,
+      apiKey: String(formData.get(`${provider}_apiKey`) ?? "").trim() || null,
+    },
+  })));
+  revalidatePath("/admin/schnittstellen");
+  redirect("/admin/schnittstellen?gespeichert=1");
+}
+
+export async function saveBlogAction(formData: FormData) {
+  await requireSession();
+  const title = String(formData.get("title") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "").trim();
+  const excerpt = String(formData.get("excerpt") ?? "").trim();
+  const content = String(formData.get("content") ?? "").trim();
+  if (!title || !excerpt || !content || !/^[a-z0-9-]{3,160}$/.test(slug)) redirect("/admin/blog/neu?fehler=1");
+  const upload = formData.get("coverImage");
+  const coverImage = upload instanceof File && upload.size ? await saveUploadedImage(upload, "blog") : null;
+  await prisma.blogPost.create({
+    data: { title, slug, excerpt, content, coverImage, published: formData.get("published") === "on", publishedAt: formData.get("published") === "on" ? new Date() : null },
+  });
+  revalidatePath("/ratgeber");
+  revalidatePath("/admin/blog");
+  redirect("/admin/blog?gespeichert=1");
+}
+
+export async function saveBlogApiSettingsAction(formData: FormData) {
+  await requireSession();
+  await prisma.blogApiSettings.upsert({
+    where: { id: "default" },
+    create: { id: "default", enabled: formData.get("enabled") === "on", allowUnauthenticated: formData.get("allowUnauthenticated") === "on", apiKey: String(formData.get("apiKey") ?? "").trim() || null },
+    update: { enabled: formData.get("enabled") === "on", allowUnauthenticated: formData.get("allowUnauthenticated") === "on", apiKey: String(formData.get("apiKey") ?? "").trim() || null },
+  });
+  revalidatePath("/admin/schnittstellen");
+  redirect("/admin/schnittstellen?blogApi=gespeichert");
 }

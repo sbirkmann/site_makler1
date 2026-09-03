@@ -140,6 +140,9 @@ model Property {
 
   featured    Boolean   @default(false)
   publishedAt DateTime?
+  // Kennzeichnet automatisiert aus einem OpenImmo-Export übernommene Objekte.
+  importSource String?
+  externalId   String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -154,6 +157,48 @@ model Property {
   @@index([city])
   @@index([featured])
   @@index([publishedAt])
+  @@unique([importSource, externalId])
+}
+
+// ---------------------------------------------------------------------------
+// OpenImmo-FTP / CRM-Weiterleitung
+// ---------------------------------------------------------------------------
+
+model FtpAccount {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  // Das Kennwort liegt ausschließlich gehasht im SFTPGo-Datenprovider.
+  homeDir   String   @default("/imports")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OpenImmoImport {
+  id            String   @id @default(cuid())
+  fileName      String
+  checksum      String   @unique
+  status        String   @default("PROCESSED") // PROCESSED | FAILED | DUPLICATE
+  propertyCount Int      @default(0)
+  error         String?  @db.Text
+  processedAt   DateTime @default(now())
+}
+
+model LeadPushProvider {
+  id        String   @id @default(cuid())
+  provider  String   @unique // ONOFFICE | PROPSTACK | FLOWFACT
+  enabled   Boolean  @default(false)
+  endpoint  String?
+  apiKey    String?
+  updatedAt DateTime @updatedAt
+}
+
+model BlogApiSettings {
+  id                   String   @id @default("default")
+  enabled              Boolean  @default(false)
+  allowUnauthenticated Boolean  @default(false)
+  apiKey               String?
+  updatedAt            DateTime @updatedAt
 }
 
 model PropertyImage {
