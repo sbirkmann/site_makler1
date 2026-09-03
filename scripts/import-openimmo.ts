@@ -56,11 +56,10 @@ async function images(zip: AdmZip, item: Record<string, unknown>, title: string)
 async function processZip(filePath: string) {
   let checksum: string | undefined = undefined;
   const originalName = path.basename(filePath).replace(/\.processing[-][0-9a-fA-F-]+$/, "");
+  const raw = await readFile(filePath);
   try {
-    const raw = await readFile(filePath);
     checksum = createHash("sha256").update(raw).digest("hex");
     if (await prisma.openImmoImport.findUnique({ where: { checksum } })) { await rm(filePath); return; }
-  try {
     const zip = new AdmZip(raw);
     const xml = zip.getEntries().find((e) => /(^|\/)openimmo\.xml$/i.test(e.entryName));
     if (!xml) throw new Error("openimmo.xml fehlt im ZIP.");
