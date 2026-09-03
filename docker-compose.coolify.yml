@@ -13,6 +13,7 @@ services:
       SFTPGO_API_URL: http://sftpgo:8080
     depends_on: [sftpgo]
     volumes: ["uploads:/app/public/uploads"]
+    networks: [default, coolify]
   sftpgo:
     image: drakkan/sftpgo:v2.6.6
     restart: unless-stopped
@@ -32,6 +33,7 @@ services:
       SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
     ports: ["2121:2121", "50000-50010:50000-50010"]
     volumes: ["ftp-imports:/imports"]
+    networks: [default, coolify]
   openimmo-importer:
     build: .
     restart: unless-stopped
@@ -43,6 +45,10 @@ services:
       LOOP_DELAY: "20000"
     volumes: ["ftp-imports:/imports", "uploads:/uploads"]
     command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm import:openimmo"]
+    networks: [default, coolify]
 volumes:
   ftp-imports: {}
   uploads: {}
+networks:
+  coolify:
+    external: true
