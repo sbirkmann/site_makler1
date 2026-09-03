@@ -16,9 +16,9 @@ export async function saveUploadedImage(file: File, folder: "blog" | "openimmo")
   if (!allowedTypes.has(file.type) || file.size > 12 * 1024 * 1024) {
     throw new Error("Erlaubt sind JPG, PNG, WebP oder AVIF bis 12 MB.");
   }
-  const targetDir = path.join(uploadRoot(), folder);
+  const targetDir = path.join(/*turbopackIgnore: true*/ uploadRoot(), folder);
   await mkdir(targetDir, { recursive: true });
   const name = `${randomUUID()}${extensions[file.type]}`;
-  await writeFile(path.join(targetDir, name), Buffer.from(await file.arrayBuffer()));
+  await writeFile(path.join(/*turbopackIgnore: true*/ targetDir, name), Buffer.from(await file.arrayBuffer()));
   return `/uploads/${folder}/${name}`;
 }

@@ -54,9 +54,12 @@ async function images(zip: AdmZip, item: Record<string, unknown>, title: string)
 }
 
 async function processZip(filePath: string) {
-  const raw = await readFile(filePath);
-  const checksum = createHash("sha256").update(raw).digest("hex");
-  if (await prisma.openImmoImport.findUnique({ where: { checksum } })) { await rm(filePath); return; }
+  let checksum: string | undefined = undefined;
+  const originalName = path.basename(filePath).replace(/\.processing[-][0-9a-fA-F-]+$/, "");
+  try {
+    const raw = await readFile(filePath);
+    checksum = createHash("sha256").update(raw).digest("hex");
+    if (await prisma.openImmoImport.findUnique({ where: { checksum } })) { await rm(filePath); return; }
   try {
     const zip = new AdmZip(raw);
     const xml = zip.getEntries().find((e) => /(^|\/)openimmo\.xml$/i.test(e.entryName));
@@ -78,10 +81,15 @@ async function processZip(filePath: string) {
       if (existing) { await prisma.property.update({ where: { id: existing.id }, data }); if (importedImages.length) { await prisma.propertyImage.deleteMany({ where: { propertyId: existing.id } }); await prisma.propertyImage.createMany({ data: importedImages.map((image) => ({ ...image, propertyId: existing.id })) }); } }
       else await prisma.property.create({ data: { ...data, images: { create: importedImages } } }); propertyCount++;
     }
-    const originalName = path.basename(filePath).replace(/\.processing[-][0-9a-fA-F-]+$/, "");
-    await prisma.openImmoImport.create({ data: { fileName: originalName, checksum, status: "PROCESSED", propertyCount } });
+    await prisma.openImmoImport.create({ data: { fileName: originalName, checksum: checksum ?? "", status: "PROCESSED", propertyCount } });
     await rm(filePath);
-  } catch (error) { await prisma.openImmoImport.upsert({ where: { checksum }, create: { fileName, checksum, status: "FAILED", error: error instanceof Error ? error.message : "Unbekannter Fehler" }, update: { status: "FAILED", error: error instanceof Error ? error.message : "Unbekannter Fehler" } }); }
+  } catch (error) {
+    await prisma.openImmoImport.upsert({
+      where: { checksum: checksum ?? "" },
+      create: { fileName: originalName, checksum: checksum ?? "", status: "FAILED", error: error instanceof Error ? error.message : "Unbekannter Fehler" },
+      update: { status: "FAILED", error: error instanceof Error ? error.message : "Unbekannter Fehler" },
+    });
+  }
 }
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
