@@ -65,8 +65,9 @@ export default async function OpeningHoursPage() {
             className="grid gap-3 rounded-[var(--radius-md)] border border-line bg-surface p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center sm:border-0 sm:bg-transparent sm:p-0"
           >
             <input type="hidden" name="id" value={row.id} />
-            <label className="text-[0.8125rem] sm:sr-only">
-              Tag / Zeitraum
+            <label className="flex flex-col gap-1 text-[0.8125rem] text-ink-muted">
+              {/* Auf grossen Schirmen traegt die Kopfzeile die Beschriftung. */}
+              <span className="sm:sr-only">Tag / Zeitraum</span>
               <input
                 name="days"
                 defaultValue={row.days}
@@ -75,8 +76,8 @@ export default async function OpeningHoursPage() {
                 className={input}
               />
             </label>
-            <label className="text-[0.8125rem] sm:sr-only">
-              Zeiten
+            <label className="flex flex-col gap-1 text-[0.8125rem] text-ink-muted">
+              <span className="sm:sr-only">Zeiten</span>
               <input
                 name="hours"
                 defaultValue={row.hours}
