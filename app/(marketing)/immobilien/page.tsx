@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { site } from "@/lib/site";
-import { findProperties, findPropertyCities } from "@/lib/repositories/properties";
+import {
+  findProperties,
+  findPropertyCities,
+  findPropertyMapMarkers,
+} from "@/lib/repositories/properties";
 import { countActiveFilters, parsePropertySearchParams, type RawSearchParams } from "@/lib/search-params";
-import { formatNumber } from "@/lib/utils";
+import { formatArea, formatNumber, formatPrice, formatRooms } from "@/lib/utils";
 import { Container, Section } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
@@ -14,6 +18,8 @@ import {
 } from "@/components/property/PropertyGrid";
 import { PropertyFilters } from "@/components/property/PropertyFilters";
 import { CTASection } from "@/components/marketing/CTASection";
+import { PropertyOverviewMap } from "@/components/map/PropertyOverviewMap";
+import type { MapMarker } from "@/components/map/PropertyMap";
 import { PropertySort } from "./PropertySort";
 import { Pagination } from "./Pagination";
 
@@ -31,6 +37,34 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 120;
+
+/**
+ * Karte zu den aktuellen Filtern. Laeuft in einer eigenen Suspense-Grenze,
+ * damit sie die Trefferliste nicht ausbremst.
+ */
+async function PropertyMapSection({ searchParams }: { searchParams: RawSearchParams }) {
+  const query = parsePropertySearchParams(searchParams);
+  const rows = await findPropertyMapMarkers(query);
+
+  const markers: MapMarker[] = rows.map((row) => ({
+    id: row.id,
+    latitude: row.latitude as number,
+    longitude: row.longitude as number,
+    title: row.title,
+    href: `/immobilien/${row.slug}`,
+    imageUrl: row.images[0]?.url,
+    subtitle: [
+      row.priceOnRequest ? "Preis auf Anfrage" : formatPrice(row.price),
+      row.livingArea ? formatArea(row.livingArea) : null,
+      row.rooms ? `${formatRooms(row.rooms)} Zi.` : null,
+      `${row.zipCode} ${row.city}`,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+  }));
+
+  return <PropertyOverviewMap markers={markers} className="mb-8" />;
+}
 
 async function PropertyResults({ searchParams }: { searchParams: RawSearchParams }) {
   const query = parsePropertySearchParams(searchParams);
@@ -114,6 +148,10 @@ export default async function PropertiesPage({
               <div className="mb-8 flex items-center justify-between gap-4 lg:justify-end">
                 <PropertySort />
               </div>
+
+              <Suspense key={`map-${key}`} fallback={null}>
+                <PropertyMapSection searchParams={params} />
+              </Suspense>
 
               <Suspense key={key} fallback={<PropertyGridSkeleton />}>
                 <PropertyResults searchParams={params} />

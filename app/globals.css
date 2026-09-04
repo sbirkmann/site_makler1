@@ -339,3 +339,52 @@ body {
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Karte (Leaflet / OpenStreetMap)
+   Leaflet bringt eigenes CSS mit; hier werden nur Marker und Popup an die
+   Gestaltung der Seite angeglichen.
+--------------------------------------------------------------------------- */
+.wohnwert-marker__pin {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-primary-700);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.32);
+}
+
+.wohnwert-marker__pin::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.leaflet-container {
+  font: inherit;
+  background: var(--color-surface-sunken);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-md, 0.5rem);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem;
+}
+
+/* Leaflet setzt sehr hohe z-index-Werte; damit bleiben Header und
+   Lightbox weiterhin ueber der Karte. */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 1;
+}

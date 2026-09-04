@@ -18,6 +18,8 @@ export const propertyCardSelect = {
   city: true,
   region: true,
   zipCode: true,
+  latitude: true,
+  longitude: true,
   featured: true,
   publishedAt: true,
   images: {
@@ -212,4 +214,49 @@ export async function findPropertyCities() {
 
 export async function countProperties() {
   return prisma.property.count({ where: { publishedAt: { not: null } } });
+}
+
+/**
+ * Objekte mit bekannter Position fuer die Uebersichtskarte. Bewusst ohne
+ * Paginierung: die Karte soll alle Treffer der aktuellen Filter zeigen,
+ * die Obergrenze schuetzt vor uebergrossen Antworten.
+ */
+export async function findPropertyMapMarkers(query: PropertyQuery, take = 300) {
+  return prisma.property.findMany({
+    where: {
+      ...buildWhere(query),
+      latitude: { not: null },
+      longitude: { not: null },
+    },
+    orderBy: [{ featured: "desc" }, { publishedAt: "desc" }],
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      city: true,
+      zipCode: true,
+      price: true,
+      priceOnRequest: true,
+      marketingType: true,
+      livingArea: true,
+      rooms: true,
+      latitude: true,
+      longitude: true,
+      images: {
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
+        take: 1,
+        select: { url: true },
+      },
+    },
+    take,
+  });
+}
+
+export type PropertyMapMarkerData = Awaited<ReturnType<typeof findPropertyMapMarkers>>[number];
+
+/** Anzahl der Objekte ohne Geokoordinaten (fuer das Backend-Dashboard). */
+export async function countPropertiesWithoutCoordinates() {
+  return prisma.property.count({
+    where: { OR: [{ latitude: null }, { longitude: null }] },
+  });
 }

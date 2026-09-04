@@ -4,6 +4,7 @@ import path from "node:path";
 import AdmZip from "adm-zip";
 import { XMLParser } from "fast-xml-parser";
 import { prisma } from "../lib/db";
+import { geocodeAddress } from "../lib/services/geocoding";
 import type { PropertyType } from "@prisma/client";
 
 const importDir = process.env.IMPORT_DIR ?? path.join(process.cwd(), "storage", "ftp-imports");
@@ -18,6 +19,24 @@ function category(v: Record<string, unknown>): PropertyType {
   const s = JSON.stringify(v).toLowerCase();
   if (s.includes("grundst")) return "GRUNDSTUECK"; if (s.includes("mehrfamil")) return "MEHRFAMILIENHAUS";
   if (s.includes("wohnung")) return "WOHNUNG"; if (s.includes("gewerbe")) return "GEWERBE"; return "HAUS";
+}
+
+
+/**
+ * OpenImmo transportiert Koordinaten optional im geo-Block (`geokoordinaten`
+ * mit den Attributen breitengrad/laengengrad). Sind sie vorhanden, sind sie
+ * dem Geocoding vorzuziehen – sie kommen direkt vom Anbieter.
+ */
+function coordinatesFromGeo(geo: Record<string, unknown>): { latitude: number; longitude: number } | null {
+  const node = (Array.isArray(geo.geokoordinaten) ? geo.geokoordinaten[0] : geo.geokoordinaten) as
+    | Record<string, unknown>
+    | undefined;
+  if (!node) return null;
+  const latitude = Number(String(node["@_breitengrad"] ?? "").replace(",", "."));
+  const longitude = Number(String(node["@_laengengrad"] ?? "").replace(",", "."));
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude === 0 && longitude === 0) return null;
+  return { latitude, longitude };
 }
 
 async function importAgent(provider: Record<string, unknown>) {
@@ -76,9 +95,30 @@ async function processZip(filePath: string) {
       const title = one(free.objekttitel) || `Importiertes Objekt ${externalId}`; const description = one(free.objektbeschreibung) || "Aus OpenImmo importiert.";
       const agent = await importAgent(entry.provider);
       const data = { title, slug: `${slug(title)}-${slug(externalId).slice(0, 16)}`, shortDescription: description.slice(0, 300), description, marketingType: JSON.stringify(object.vermarktungsart ?? {}).toLowerCase().includes("miete") ? "MIETE" as const : "KAUF" as const, propertyType: category((object.objektkategorie ?? {}) as Record<string, unknown>), status: "VERFUEGBAR" as const, livingArea: num((object.flaechen as Record<string, unknown> | undefined)?.wohnflaeche), rooms: num((object.flaechen as Record<string, unknown> | undefined)?.anzahl_zimmer), street: one(geo.strasse) || null, zipCode: one(geo.plz) || "00000", city: one(geo.ort) || "Unbekannt", region: one(geo.bundesland) || null, importSource: "OPENIMMO_FTP", externalId, agentId: agent?.id ?? null, publishedAt: new Date() };
-      const existing = await prisma.property.findFirst({ where: { importSource: "OPENIMMO_FTP", externalId } }); const importedImages = await images(zip, object, title);
-      if (existing) { await prisma.property.update({ where: { id: existing.id }, data }); if (importedImages.length) { await prisma.propertyImage.deleteMany({ where: { propertyId: existing.id } }); await prisma.propertyImage.createMany({ data: importedImages.map((image) => ({ ...image, propertyId: existing.id })) }); } }
-      else await prisma.property.create({ data: { ...data, images: { create: importedImages } } }); propertyCount++;
+      const existing = await prisma.property.findFirst({ where: { importSource: "OPENIMMO_FTP", externalId }, select: { id: true, street: true, zipCode: true, city: true, region: true, latitude: true, longitude: true } });
+      // Position: Anbieterkoordinaten haben Vorrang, sonst Geocoding ueber
+      // Nominatim. Bereits geocodierte Objekte werden nur bei Adressaenderung
+      // erneut abgefragt.
+      let position = coordinatesFromGeo(geo);
+      if (!position) {
+        const addressIsUnchanged =
+          existing !== null &&
+          existing.latitude !== null &&
+          existing.longitude !== null &&
+          (existing.street ?? "") === (data.street ?? "") &&
+          existing.zipCode === data.zipCode &&
+          existing.city === data.city &&
+          (existing.region ?? "") === (data.region ?? "");
+        if (addressIsUnchanged) {
+          position = { latitude: existing.latitude as number, longitude: existing.longitude as number };
+        } else {
+          position = await geocodeAddress(data);
+        }
+      }
+      const dataWithPosition = { ...data, latitude: position?.latitude ?? null, longitude: position?.longitude ?? null };
+      const importedImages = await images(zip, object, title);
+      if (existing) { await prisma.property.update({ where: { id: existing.id }, data: dataWithPosition }); if (importedImages.length) { await prisma.propertyImage.deleteMany({ where: { propertyId: existing.id } }); await prisma.propertyImage.createMany({ data: importedImages.map((image) => ({ ...image, propertyId: existing.id })) }); } }
+      else await prisma.property.create({ data: { ...dataWithPosition, images: { create: importedImages } } }); propertyCount++;
     }
     await prisma.openImmoImport.create({ data: { fileName: originalName, checksum: checksum ?? "", status: "PROCESSED", propertyCount } });
     await rm(filePath);

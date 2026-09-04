@@ -8,6 +8,7 @@ import { adminLoginSchema, adminPropertySchema } from "@/lib/validations/forms";
 import { createSession, destroySession, requireSession, verifyCredentials } from "@/lib/services/auth";
 import { createSftpGoUser, deleteSftpGoUser } from "@/lib/services/sftpgo";
 import { saveUploadedImage } from "@/lib/services/uploads";
+import { addressChanged, geocodeAddress } from "@/lib/services/geocoding";
 import type { FormState } from "@/lib/actions/form-state";
 
 function fieldErrors(error: { issues: { path: PropertyKey[]; message: string }[] }) {
@@ -104,9 +105,37 @@ export async function savePropertyAction(
     features: toList(d.features),
   };
 
+  // Koordinaten nur bestimmen, wenn noetig: bei neuen Objekten immer, bei
+  // bestehenden nur, wenn sich die Adresse geaendert hat oder noch keine
+  // Position hinterlegt ist. Das schont das Kontingent von Nominatim.
+  const previous = id
+    ? await prisma.property.findUnique({
+        where: { id },
+        select: { street: true, zipCode: true, city: true, region: true, latitude: true, longitude: true },
+      })
+    : null;
+
+  const needsGeocoding =
+    !id ||
+    !previous ||
+    previous.latitude === null ||
+    previous.longitude === null ||
+    addressChanged(previous, data);
+
+  const position = needsGeocoding ? await geocodeAddress(data) : null;
+
+  const dataWithPosition = {
+    ...data,
+    ...(position
+      ? { latitude: position.latitude, longitude: position.longitude }
+      : needsGeocoding && !id
+        ? { latitude: null, longitude: null }
+        : {}),
+  };
+
   try {
     if (id) {
-      await prisma.property.update({ where: { id }, data });
+      await prisma.property.update({ where: { id }, data: dataWithPosition });
       if (imageUrls.length) {
         // Bilder vollstaendig ersetzen, wenn welche angegeben wurden
         await prisma.propertyImage.deleteMany({ where: { propertyId: id } });
@@ -123,7 +152,7 @@ export async function savePropertyAction(
     } else {
       const created = await prisma.property.create({
         data: {
-          ...data,
+          ...dataWithPosition,
           publishedAt: new Date(),
           images: {
             create: imageUrls.map((url, i) => ({

@@ -21,6 +21,7 @@ import { PropertyGallery } from "@/components/property/PropertyGallery";
 import { PropertyFacts, FeatureList, type Fact } from "@/components/property/PropertyFacts";
 import { PropertyInquiryForm } from "@/components/property/PropertyInquiryForm";
 import { PropertyGrid } from "@/components/property/PropertyGrid";
+import { PropertyMap } from "@/components/map/PropertyMap";
 import {
   IconArea,
   IconBath,
@@ -129,6 +130,8 @@ export default async function PropertyDetailPage({
   ].filter((r): r is { label: string; value: string } => r !== null);
 
   const priceNumber = toNumber(property.price);
+  const hasPosition =
+    typeof property.latitude === "number" && typeof property.longitude === "number";
 
   const listingSchema = {
     "@context": "https://schema.org",
@@ -282,26 +285,51 @@ export default async function PropertyDetailPage({
                 </Reveal>
               ) : null}
 
-              {property.locationDescription ? (
+              {property.locationDescription || hasPosition ? (
                 <Reveal>
                   <section>
                     <h2 className="heading-4 text-primary-950">Lage</h2>
-                    <p className="mt-5 max-w-[68ch] text-[1.0625rem] leading-[1.78] text-ink">
-                      {property.locationDescription}
-                    </p>
-                    {/* Kartenplatzhalter – Erweiterungspunkt fuer eine echte Karte */}
-                    <div className="mt-6 flex aspect-[16/7] items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-line-strong bg-surface-muted">
-                      <div className="flex flex-col items-center gap-2 text-center">
-                        <IconLocation size={26} className="text-primary-400" />
-                        <p className="text-[0.875rem] font-medium text-ink-muted">
-                          {property.zipCode} {property.city}
-                          {property.region ? ` · ${property.region}` : ""}
+                    {property.locationDescription ? (
+                      <p className="mt-5 max-w-[68ch] text-[1.0625rem] leading-[1.78] text-ink">
+                        {property.locationDescription}
+                      </p>
+                    ) : null}
+
+                    {hasPosition ? (
+                      <>
+                        <PropertyMap
+                          className="mt-6 aspect-[16/9] w-full"
+                          approximate
+                          zoom={14}
+                          markers={[
+                            {
+                              id: property.id,
+                              latitude: property.latitude as number,
+                              longitude: property.longitude as number,
+                              title: property.title,
+                              subtitle: `${property.zipCode} ${property.city}`,
+                            },
+                          ]}
+                        />
+                        <p className="mt-3 text-[0.8125rem] text-ink-subtle">
+                          Der markierte Bereich zeigt die ungefähre Lage. Die genaue Adresse
+                          teilen wir im Rahmen der Besichtigung mit.
                         </p>
-                        <p className="max-w-xs text-[0.8125rem] text-ink-subtle">
-                          Die genaue Adresse teilen wir im Rahmen der Besichtigung mit.
-                        </p>
+                      </>
+                    ) : (
+                      <div className="mt-6 flex aspect-[16/7] items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-line-strong bg-surface-muted">
+                        <div className="flex flex-col items-center gap-2 text-center">
+                          <IconLocation size={26} className="text-primary-400" />
+                          <p className="text-[0.875rem] font-medium text-ink-muted">
+                            {property.zipCode} {property.city}
+                            {property.region ? ` · ${property.region}` : ""}
+                          </p>
+                          <p className="max-w-xs text-[0.8125rem] text-ink-subtle">
+                            Die genaue Adresse teilen wir im Rahmen der Besichtigung mit.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </section>
                 </Reveal>
               ) : null}

@@ -11,6 +11,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       UPLOAD_DIR: /app/public/uploads
       SFTPGO_API_URL: http://sftpgo:8080
+      GEOCODER_CONTACT: ${GEOCODER_CONTACT:-kontakt@example.de}
+      GEOCODER_URL: ${GEOCODER_URL:-https://nominatim.openstreetmap.org/search}
     depends_on: [sftpgo]
     volumes: ["uploads:/app/public/uploads"]
     networks: [default, coolify]
@@ -43,8 +45,12 @@ services:
       UPLOAD_DIR: /uploads
       WORKER_CONCURRENCY: "3"
       LOOP_DELAY: "20000"
+      GEOCODER_CONTACT: ${GEOCODER_CONTACT:-kontakt@example.de}
+      GEOCODER_URL: ${GEOCODER_URL:-https://nominatim.openstreetmap.org/search}
     volumes: ["ftp-imports:/imports", "uploads:/uploads"]
-    command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm import:openimmo"]
+    # Der Importer traegt beim Start zuerst fehlende Koordinaten nach und
+    # geht danach in die Dauerschleife des OpenImmo-Workers.
+    command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm geocode:backfill && pnpm import:openimmo"]
     networks: [default, coolify]
 volumes:
   ftp-imports: {}
