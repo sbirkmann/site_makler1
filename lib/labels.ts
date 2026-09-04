@@ -96,6 +96,24 @@ export const leadSourceLabels: Record<LeadSource, string> = {
   VERKAUFSFUNNEL: "Verkaufsfunnel",
   BEWERTUNGSFUNNEL: "Bewertungsfunnel",
   KONTAKTFORMULAR: "Kontaktformular",
+  SUCHPROFIL: "Suchprofil",
+};
+
+/** Zeitlicher Rahmen eines Suchprofils. */
+export const searchTimeframeLabels: Record<string, string> = {
+  SOFORT: "Sofort – ich kann kurzfristig zugreifen",
+  DREI_MONATE: "In den nächsten 3 Monaten",
+  SECHS_MONATE: "In den nächsten 6 Monaten",
+  JAHR: "Innerhalb eines Jahres",
+  UNBESTIMMT: "Noch offen – ich schaue mich um",
+};
+
+/** Finanzierungsstand eines Suchprofils. */
+export const searchFinancingLabels: Record<string, string> = {
+  GESICHERT: "Finanzierung steht bzw. Kauf aus Eigenmitteln",
+  IN_KLAERUNG: "Finanzierung ist in Klärung",
+  OFFEN: "Finanzierung noch offen",
+  BERATUNG: "Ich wünsche eine Finanzierungsberatung",
 };
 
 /** Farbzuordnung fuer Status-Badges. */

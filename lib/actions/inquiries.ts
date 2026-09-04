@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import {
   contactSchema,
   propertyInquirySchema,
+  searchProfileSchema,
   valuationSchema,
 } from "@/lib/validations/forms";
 import type { FormState } from "@/lib/actions/form-state";
 import {
   createContactRequest,
   createPropertyLead,
+  createSearchProfile,
   createValuationRequest,
 } from "@/lib/services/leads";
 
@@ -138,6 +140,44 @@ export async function submitContactRequest(
       status: "error",
       message:
         "Ihre Nachricht konnte nicht gespeichert werden. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
+    };
+  }
+}
+
+/** Suchprofil-Funnel: Was sucht der Interessent? */
+export async function submitSearchProfile(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const raw = Object.fromEntries(formData.entries());
+  const parsed = searchProfileSchema.safeParse({
+    ...raw,
+    ownUse: formData.get("ownUse") === "on",
+    notifyByEmail: formData.get("notifyByEmail") === "on",
+    privacyAccepted: formData.get("privacyAccepted") ?? false,
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Bitte prüfen Sie die markierten Felder.",
+      errors: fieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    await createSearchProfile(parsed.data);
+    revalidatePath("/admin");
+    revalidatePath("/admin/suchprofile");
+    return {
+      status: "success",
+      message: "Ihr Suchprofil ist hinterlegt.",
+    };
+  } catch {
+    return {
+      status: "error",
+      message:
+        "Ihr Suchprofil konnte nicht gespeichert werden. Bitte versuchen Sie es erneut oder rufen Sie uns an.",
     };
   }
 }

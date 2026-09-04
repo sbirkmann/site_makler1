@@ -133,6 +133,77 @@ export const valuationSchema = z.object({
 });
 export type ValuationInput = z.infer<typeof valuationSchema>;
 
+/* ------------------------------------------------------------- Suchprofil */
+
+export const searchTimeframeEnum = z.enum([
+  "SOFORT",
+  "DREI_MONATE",
+  "SECHS_MONATE",
+  "JAHR",
+  "UNBESTIMMT",
+]);
+
+export const searchFinancingEnum = z.enum(["GESICHERT", "IN_KLAERUNG", "OFFEN", "BERATUNG"]);
+
+/**
+ * Suchprofil aus dem Kontakt-Funnel. Mehrfachauswahlen (Immobilientypen,
+ * Regionen) kommen als kommaseparierte Liste aus dem Formular.
+ */
+const commaList = (max: number) =>
+  z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) =>
+      (v ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, max),
+    );
+
+export const searchProfileSchema = z
+  .object({
+    marketingType: z.enum(["KAUF", "MIETE"]).default("KAUF"),
+    propertyTypes: commaList(10).pipe(z.array(propertyTypeEnum).min(1, "Bitte mindestens einen Immobilientyp wählen.")),
+    regions: commaList(20),
+    zipCode: z
+      .union([z.literal(""), z.string().trim().regex(/^\d{5}$/, "Bitte eine 5-stellige Postleitzahl angeben.")])
+      .optional(),
+    radiusKm: optionalNumber("den Umkreis", 0, 200),
+    priceMin: optionalNumber("den Mindestpreis", 0, 1_000_000_000),
+    priceMax: optionalNumber("den Höchstpreis", 0, 1_000_000_000),
+    roomsMin: optionalNumber("die Zimmerzahl", 0, 100),
+    areaMin: optionalNumber("die Wohnfläche", 0, 100000),
+    plotAreaMin: optionalNumber("die Grundstücksfläche", 0, 1000000),
+    timeframe: searchTimeframeEnum.optional(),
+    financing: searchFinancingEnum.optional(),
+    ownUse: z.coerce.boolean().default(true),
+    firstName: requiredString("Ihren Vornamen"),
+    lastName: requiredString("Ihren Nachnamen"),
+    email: emailSchema,
+    phone: optionalPhone,
+    message: z.string().trim().max(4000).optional().or(z.literal("")),
+    notifyByEmail: z.coerce.boolean().default(true),
+    privacyAccepted: privacySchema,
+    website: honeypotSchema,
+  })
+  .refine(
+    (d) => d.priceMin === undefined || d.priceMax === undefined || d.priceMin <= d.priceMax,
+    { path: ["priceMax"], message: "Der Höchstpreis muss über dem Mindestpreis liegen." },
+  );
+export type SearchProfileInput = z.infer<typeof searchProfileSchema>;
+
+/* --------------------------------------------------------- Öffnungszeiten */
+
+export const openingHourSchema = z.object({
+  days: requiredString("den Tag bzw. Zeitraum", 2),
+  hours: requiredString("die Uhrzeit", 2),
+  closed: z.coerce.boolean().default(false),
+  sortOrder: z.coerce.number().int().min(0).max(999).default(0),
+});
+export type OpeningHourInput = z.infer<typeof openingHourSchema>;
+
 /* ----------------------------------------------------------------- Admin */
 
 export const adminLoginSchema = z.object({

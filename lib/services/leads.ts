@@ -1,7 +1,13 @@
 import "server-only";
 import type { LeadSource } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import type { ContactInput, PropertyInquiryInput, ValuationInput } from "@/lib/validations/forms";
+import type {
+  ContactInput,
+  PropertyInquiryInput,
+  SearchProfileInput,
+  ValuationInput,
+} from "@/lib/validations/forms";
+import { propertyTypeLabels } from "@/lib/labels";
 import { valuationService } from "@/lib/services/valuation";
 import { pushLeadToConfiguredCrms } from "@/lib/services/lead-push";
 
@@ -126,4 +132,84 @@ export async function createContactRequest(input: ContactInput) {
 
   void pushLeadToConfiguredCrms("contact", contact);
   return contact;
+}
+
+/**
+ * Suchprofil aus dem Kontakt-Funnel. Wird zusaetzlich als Lead gefuehrt und –
+ * sofern konfiguriert – an die angebundenen CRM-Systeme uebergeben.
+ */
+export async function createSearchProfile(input: SearchProfileInput) {
+  const criteria = {
+    marketingType: input.marketingType,
+    propertyTypes: input.propertyTypes,
+    regions: input.regions,
+    zipCode: input.zipCode || null,
+    radiusKm: input.radiusKm ?? null,
+    priceMin: input.priceMin ?? null,
+    priceMax: input.priceMax ?? null,
+    roomsMin: input.roomsMin ?? null,
+    areaMin: input.areaMin ?? null,
+    plotAreaMin: input.plotAreaMin ?? null,
+  };
+
+  const label = buildSearchProfileLabel(input);
+
+  const profile = await prisma.savedSearch.create({
+    data: {
+      label,
+      // Rohkriterien fuer einen spaeteren automatischen Objektabgleich
+      query: criteria,
+      marketingType: input.marketingType,
+      propertyTypes: input.propertyTypes,
+      regions: input.regions,
+      zipCode: input.zipCode || null,
+      radiusKm: input.radiusKm ?? null,
+      priceMin: input.priceMin ?? null,
+      priceMax: input.priceMax ?? null,
+      roomsMin: input.roomsMin ?? null,
+      areaMin: input.areaMin ?? null,
+      plotAreaMin: input.plotAreaMin ?? null,
+      timeframe: input.timeframe ?? null,
+      financing: input.financing ?? null,
+      ownUse: input.ownUse,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      phone: input.phone ?? null,
+      message: input.message || null,
+      notifyByEmail: input.notifyByEmail,
+      privacyAccepted: true,
+    },
+  });
+
+  // Auch als Lead fuehren, damit alle Anfragen an einer Stelle auflaufen.
+  await prisma.lead.create({
+    data: {
+      source: "SUCHPROFIL",
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      phone: input.phone ?? null,
+      message: input.message || `Suchprofil: ${label}`,
+      privacyAccepted: true,
+    },
+  });
+
+  void pushLeadToConfiguredCrms("search_profile", { profile, criteria });
+  return profile;
+}
+
+/** Kurzbeschreibung des Gesuchs, z. B. "Kauf · Haus, Wohnung · Köln bis 750.000 €". */
+function buildSearchProfileLabel(input: SearchProfileInput): string {
+  const types = input.propertyTypes.map((t) => propertyTypeLabels[t]).join(", ");
+  const where = input.regions.length
+    ? input.regions.join(", ")
+    : input.zipCode
+      ? `PLZ ${input.zipCode}`
+      : "ohne Ortsangabe";
+  const budget =
+    input.priceMax !== undefined
+      ? ` bis ${new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(input.priceMax)}`
+      : "";
+  return `${input.marketingType === "MIETE" ? "Miete" : "Kauf"} · ${types} · ${where}${budget}`.slice(0, 200);
 }
