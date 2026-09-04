@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { RequestStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { adminLoginSchema, adminPropertySchema } from "@/lib/validations/forms";
+import { adminLoginSchema, adminPropertySchema, openingHourSchema } from "@/lib/validations/forms";
 import { createSession, destroySession, requireSession, verifyCredentials } from "@/lib/services/auth";
 import { createSftpGoUser, deleteSftpGoUser } from "@/lib/services/sftpgo";
 import { saveUploadedImage } from "@/lib/services/uploads";
@@ -218,6 +218,8 @@ export async function updateRequestStatusAction(formData: FormData) {
     await prisma.valuationRequest.update({ where: { id }, data: { status } });
   } else if (kind === "contact") {
     await prisma.contactRequest.update({ where: { id }, data: { status } });
+  } else if (kind === "searchProfile") {
+    await prisma.savedSearch.update({ where: { id }, data: { status } });
   }
 
   revalidatePath("/admin/anfragen");
@@ -299,4 +301,61 @@ export async function saveBlogApiSettingsAction(formData: FormData) {
   });
   revalidatePath("/admin/schnittstellen");
   redirect("/admin/schnittstellen?blogApi=gespeichert");
+}
+
+/* --------------------------------------------------------- Öffnungszeiten */
+
+/**
+ * Speichert die gesamte Tabelle in einem Rutsch: bestehende Zeilen werden
+ * aktualisiert, leere Zeilen entfernt und neue angelegt. Das Formular liefert
+ * dafuer je Zeile die Felder `days[]`, `hours[]`, `closed[]` und `id[]`.
+ */
+export async function saveOpeningHoursAction(formData: FormData) {
+  await requireSession();
+
+  const ids = formData.getAll("id").map(String);
+  const days = formData.getAll("days").map(String);
+  const hours = formData.getAll("hours").map(String);
+  // Checkboxen liefern nur fuer gesetzte Haken einen Wert; der Index kommt
+  // deshalb ueber den Namen "closed-<index>".
+  const rows = days.map((day, index) => ({
+    id: ids[index] ?? "",
+    days: day.trim(),
+    hours: (hours[index] ?? "").trim(),
+    closed: formData.get(`closed-${index}`) === "on",
+    sortOrder: index,
+  }));
+
+  const keep: string[] = [];
+
+  for (const row of rows) {
+    // Vollstaendig leere Zeilen sind das Signal zum Entfernen.
+    if (!row.days && !row.hours) continue;
+
+    const parsed = openingHourSchema.safeParse(row);
+    if (!parsed.success) continue;
+
+    if (row.id) {
+      await prisma.openingHour.update({ where: { id: row.id }, data: parsed.data });
+      keep.push(row.id);
+    } else {
+      const created = await prisma.openingHour.create({ data: parsed.data });
+      keep.push(created.id);
+    }
+  }
+
+  await prisma.openingHour.deleteMany({ where: { id: { notIn: keep } } });
+
+  revalidatePath("/admin/oeffnungszeiten");
+  revalidatePath("/kontakt");
+  revalidatePath("/");
+}
+
+/** Setzt die Öffnungszeiten auf die Vorgabe aus `lib/site.ts` zurueck. */
+export async function resetOpeningHoursAction() {
+  await requireSession();
+  await prisma.openingHour.deleteMany({});
+  revalidatePath("/admin/oeffnungszeiten");
+  revalidatePath("/kontakt");
+  revalidatePath("/");
 }

@@ -33,6 +33,9 @@ export const site = {
     zipCode: "50667",
     city: "Koeln",
     country: "Deutschland",
+    // Koordinaten des Buerostandorts fuer die Karte auf der Kontaktseite.
+    latitude: 50.938639,
+    longitude: 6.955029,
   },
   // Telefonnummern stammen aus dem offiziellen Beispiel-Rufnummernblock
   // der Bundesnetzagentur (0..2312 1-0 bis -9) und koennen niemanden erreichen.

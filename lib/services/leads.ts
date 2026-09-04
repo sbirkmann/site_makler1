@@ -195,7 +195,27 @@ export async function createSearchProfile(input: SearchProfileInput) {
     },
   });
 
-  void pushLeadToConfiguredCrms("search_profile", { profile, criteria });
+  // Fuer die CRM-Seite ein flaches, sprechendes Objekt statt der rohen Zeile:
+  // onOffice & Co. erwarten Kontakt und Suchkriterien getrennt.
+  void pushLeadToConfiguredCrms("search_profile", {
+    contact: {
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      email: profile.email,
+      phone: profile.phone,
+      notifyByEmail: profile.notifyByEmail,
+    },
+    searchCriteria: {
+      ...criteria,
+      timeframe: profile.timeframe,
+      financing: profile.financing,
+      ownUse: profile.ownUse,
+    },
+    label: profile.label,
+    message: profile.message,
+    profileId: profile.id,
+    createdAt: profile.createdAt,
+  });
   return profile;
 }
 

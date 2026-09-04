@@ -2,13 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/services/auth";
 import { getAllRequests } from "@/lib/repositories/admin";
-import { cn, formatArea, formatDateShort } from "@/lib/utils";
+import { cn, formatArea, formatDateShort, formatPrice } from "@/lib/utils";
 import {
   conditionLabels,
   leadSourceLabels,
+  marketingTypeLabels,
   propertyTypeLabels,
   requestStatusLabels,
   requestStatusTone,
+  searchFinancingLabels,
+  searchTimeframeLabels,
   sellingIntentLabels,
 } from "@/lib/labels";
 import { Badge } from "@/components/ui/Badge";
@@ -19,12 +22,13 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Anfragen" };
 
-type Tab = "leads" | "bewertungen" | "kontakt";
+type Tab = "leads" | "bewertungen" | "kontakt" | "suchprofile";
 
 const tabs: { id: Tab; label: string }[] = [
   { id: "leads", label: "Leads" },
   { id: "bewertungen", label: "Bewertungsanfragen" },
   { id: "kontakt", label: "Kontaktanfragen" },
+  { id: "suchprofile", label: "Suchprofile" },
 ];
 
 function Card({ children }: { children: React.ReactNode }) {
@@ -69,12 +73,13 @@ export default async function AdminRequestsPage({
   const { typ } = await searchParams;
   const active: Tab = tabs.some((t) => t.id === typ) ? (typ as Tab) : "leads";
 
-  const { leads, valuations, contacts } = await getAllRequests();
+  const { leads, valuations, contacts, searchProfiles } = await getAllRequests();
 
   const counts: Record<Tab, number> = {
     leads: leads.length,
     bewertungen: valuations.length,
     kontakt: contacts.length,
+    suchprofile: searchProfiles.length,
   };
 
   return (
@@ -284,6 +289,121 @@ export default async function AdminRequestsPage({
                 <p className="whitespace-pre-line rounded-[var(--radius-md)] bg-surface-muted px-4 py-3 text-[0.875rem] leading-relaxed text-ink">
                   {c.message}
                 </p>
+              </Card>
+            ))
+          )}
+        </ul>
+      ) : null}
+
+      {active === "suchprofile" ? (
+        <ul className="flex flex-col gap-4">
+          {searchProfiles.length === 0 ? (
+            <p className="rounded-[var(--radius-lg)] border border-dashed border-line-strong bg-surface px-6 py-16 text-center text-[0.9375rem] text-ink-subtle">
+              Noch keine Suchprofile hinterlegt.
+            </p>
+          ) : (
+            searchProfiles.map((p) => (
+              <Card key={p.id}>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[1.0625rem] font-medium text-primary-950">
+                      {p.firstName ? `${p.firstName} ` : ""}
+                      {p.lastName}
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-[0.8125rem] text-ink-subtle">
+                      <Badge tone="muted">{marketingTypeLabels[p.marketingType]}</Badge>
+                      <span>{formatDateShort(p.createdAt)}</span>
+                      {p.notifyByEmail ? <Badge tone="muted">E-Mail-Benachrichtigung</Badge> : null}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge tone={requestStatusTone[p.status]}>
+                      {requestStatusLabels[p.status]}
+                    </Badge>
+                    <StatusSelect kind="searchProfile" id={p.id} status={p.status} />
+                  </div>
+                </div>
+
+                <ContactLinks email={p.email} phone={p.phone} />
+
+                <p className="rounded-[var(--radius-md)] bg-surface-muted px-4 py-3 text-[0.875rem] font-medium text-primary-900">
+                  {p.label}
+                </p>
+
+                <dl className="grid gap-x-6 gap-y-2 text-[0.875rem] sm:grid-cols-2 lg:grid-cols-3">
+                  {p.propertyTypes.length ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Objektart:</dt>
+                      <dd className="text-ink">
+                        {p.propertyTypes.map((t) => propertyTypeLabels[t]).join(", ")}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {p.regions.length ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Lage:</dt>
+                      <dd className="text-ink">{p.regions.join(", ")}</dd>
+                    </div>
+                  ) : null}
+                  {p.zipCode ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">PLZ:</dt>
+                      <dd className="text-ink">
+                        {p.zipCode}
+                        {p.radiusKm ? ` (+${p.radiusKm} km)` : ""}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {p.priceMin || p.priceMax ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Budget:</dt>
+                      <dd className="text-ink">
+                        {p.priceMin ? formatPrice(p.priceMin) : "offen"} –{" "}
+                        {p.priceMax ? formatPrice(p.priceMax) : "offen"}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {p.roomsMin ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Zimmer ab:</dt>
+                      <dd className="text-ink">{p.roomsMin}</dd>
+                    </div>
+                  ) : null}
+                  {p.areaMin ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Wohnfläche ab:</dt>
+                      <dd className="text-ink">{formatArea(p.areaMin)}</dd>
+                    </div>
+                  ) : null}
+                  {p.plotAreaMin ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Grundstück ab:</dt>
+                      <dd className="text-ink">{formatArea(p.plotAreaMin)}</dd>
+                    </div>
+                  ) : null}
+                  {p.timeframe ? (
+                    <div className="flex gap-2">
+                      <dt className="text-ink-subtle">Zeitrahmen:</dt>
+                      <dd className="text-ink">{searchTimeframeLabels[p.timeframe] ?? p.timeframe}</dd>
+                    </div>
+                  ) : null}
+                  {p.financing ? (
+                    <div className="flex gap-2 sm:col-span-2">
+                      <dt className="text-ink-subtle">Finanzierung:</dt>
+                      <dd className="text-ink">{searchFinancingLabels[p.financing] ?? p.financing}</dd>
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <dt className="text-ink-subtle">Nutzung:</dt>
+                    <dd className="text-ink">{p.ownUse ? "Eigennutzung" : "Kapitalanlage"}</dd>
+                  </div>
+                </dl>
+
+                {p.message ? (
+                  <p className="whitespace-pre-line text-[0.875rem] leading-relaxed text-ink">
+                    {p.message}
+                  </p>
+                ) : null}
               </Card>
             ))
           )}

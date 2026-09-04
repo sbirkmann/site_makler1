@@ -14,7 +14,7 @@ export function StatusSelect({
   id,
   status,
 }: {
-  kind: "lead" | "valuation" | "contact";
+  kind: "lead" | "valuation" | "contact" | "searchProfile";
   id: string;
   status: RequestStatus;
 }) {

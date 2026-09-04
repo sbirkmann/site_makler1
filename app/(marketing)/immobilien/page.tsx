@@ -166,7 +166,7 @@ export default async function PropertiesPage({
         title="Wir kennen Objekte, die nie öffentlich werden."
         description="Ein spürbarer Teil unserer Verkäufe findet ohne Portal statt. Sagen Sie uns, was Sie suchen – wir melden uns, sobald etwas Passendes in die Vermarktung geht."
         primaryLabel="Suchprofil hinterlegen"
-        primaryHref="/kontakt?anliegen=suchprofil"
+        primaryHref="/suchprofil"
         secondaryLabel="Persönlich beraten lassen"
         secondaryHref="/kontakt"
       />

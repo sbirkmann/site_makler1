@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { site } from "@/lib/site";
 import { findAgents } from "@/lib/repositories/agents";
+import { findOpeningHours } from "@/lib/repositories/settings";
 import { Container, Section } from "@/components/ui/Container";
 import { Reveal } from "@/components/ui/Reveal";
 import { ContactForm } from "@/components/marketing/ContactForm";
+import { SearchProfileFunnel } from "@/components/funnel/SearchProfileFunnel";
+import { PropertyMap } from "@/components/map/PropertyMap";
 import { IconClock, IconLocation, IconMail, IconPhone, IconWhatsApp } from "@/components/icons";
 
 export const metadata: Metadata = {
@@ -33,8 +36,11 @@ export default async function ContactPage({
   searchParams: Promise<{ anliegen?: string }>;
 }) {
   const { anliegen } = await searchParams;
-  const agents = await findAgents();
+  const [agents, openingHours] = await Promise.all([findAgents(), findOpeningHours()]);
   const defaultSubject = anliegen ? subjectMap[anliegen] : undefined;
+  // Beim Anliegen "Suchprofil" fuehrt der Funnel gezielter als das freie
+  // Kontaktformular – er fragt ab, was gesucht wird.
+  const showSearchProfile = anliegen === "suchprofil";
 
   return (
     <>
@@ -138,10 +144,16 @@ export default async function ContactPage({
                     Öffnungszeiten
                   </h2>
                   <dl className="mt-5 divide-y divide-line">
-                    {site.openingHours.map((row) => (
+                    {openingHours.map((row) => (
                       <div key={row.days} className="flex justify-between gap-4 py-3">
                         <dt className="text-[0.9375rem] text-ink-muted">{row.days}</dt>
-                        <dd className="text-[0.9375rem] font-medium text-primary-950">
+                        <dd
+                          className={
+                            row.closed
+                              ? "text-[0.9375rem] text-ink-subtle"
+                              : "text-[0.9375rem] font-medium text-primary-950"
+                          }
+                        >
                           {row.hours}
                         </dd>
                       </div>
@@ -154,31 +166,41 @@ export default async function ContactPage({
                 </div>
               </Reveal>
 
-              {/* Kartenplatzhalter */}
+              {/* Anfahrt */}
               <Reveal delay={140}>
-                <div className="flex aspect-[16/9] items-center justify-center rounded-[var(--radius-lg)] border border-dashed border-line-strong bg-surface-muted">
-                  <div className="flex flex-col items-center gap-2 text-center">
-                    <IconLocation size={26} className="text-primary-400" />
-                    <p className="text-[0.875rem] font-medium text-ink-muted">
-                      {site.address.street}, {site.address.zipCode} {site.address.city}
-                    </p>
-                    <p className="max-w-xs text-[0.8125rem] text-ink-subtle">
-                      Kartenplatzhalter – hier lässt sich eine datenschutzkonforme Karte einbinden.
-                    </p>
-                  </div>
-                </div>
+                <PropertyMap
+                  className="aspect-[16/9] w-full"
+                  zoom={15}
+                  markers={[
+                    {
+                      id: "buero",
+                      latitude: site.address.latitude,
+                      longitude: site.address.longitude,
+                      title: site.name,
+                      subtitle: `${site.address.street}, ${site.address.zipCode} ${site.address.city}`,
+                    },
+                  ]}
+                />
               </Reveal>
             </div>
 
-            {/* Formular */}
+            {/* Formular bzw. Suchprofil-Funnel */}
             <Reveal delay={60}>
               <div className="rounded-[var(--radius-xl)] border border-line bg-surface p-6 shadow-[var(--shadow-card)] sm:p-8">
-                <h2 className="heading-4 text-primary-950">Schreiben Sie uns</h2>
+                <h2 className="heading-4 text-primary-950">
+                  {showSearchProfile ? "Ihr Suchprofil" : "Schreiben Sie uns"}
+                </h2>
                 <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-ink-muted">
-                  Je konkreter Ihr Anliegen, desto gezielter können wir antworten.
+                  {showSearchProfile
+                    ? "In wenigen Schritten: Wir melden uns, sobald ein passendes Objekt in die Vermarktung geht – oft bevor es öffentlich inseriert wird."
+                    : "Je konkreter Ihr Anliegen, desto gezielter können wir antworten."}
                 </p>
                 <div className="mt-7">
-                  <ContactForm defaultSubject={defaultSubject} />
+                  {showSearchProfile ? (
+                    <SearchProfileFunnel />
+                  ) : (
+                    <ContactForm defaultSubject={defaultSubject} />
+                  )}
                 </div>
               </div>
             </Reveal>

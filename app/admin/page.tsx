@@ -44,6 +44,13 @@ export default async function AdminDashboardPage() {
       href: "/admin/anfragen?typ=kontakt",
       Icon: IconInbox,
     },
+    {
+      label: "Neue Suchprofile",
+      value: stats.newSearchProfiles,
+      detail: `${stats.totalSearchProfiles} insgesamt`,
+      href: "/admin/anfragen?typ=suchprofile",
+      Icon: IconUsers,
+    },
   ];
 
   return (

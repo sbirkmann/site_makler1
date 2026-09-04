@@ -12,6 +12,8 @@ export async function getDashboardStats() {
     totalValuations,
     newContacts,
     totalContacts,
+    newSearchProfiles,
+    totalSearchProfiles,
   ] = await Promise.all([
     prisma.property.count(),
     prisma.property.count({ where: { publishedAt: { not: null } } }),
@@ -22,6 +24,8 @@ export async function getDashboardStats() {
     prisma.valuationRequest.count(),
     prisma.contactRequest.count({ where: { status: "NEU" } }),
     prisma.contactRequest.count(),
+    prisma.savedSearch.count({ where: { status: "NEU" } }),
+    prisma.savedSearch.count(),
   ]);
 
   return {
@@ -34,11 +38,13 @@ export async function getDashboardStats() {
     totalValuations,
     newContacts,
     totalContacts,
+    newSearchProfiles,
+    totalSearchProfiles,
   };
 }
 
 export async function getRecentActivity() {
-  const [leads, valuations, contacts] = await Promise.all([
+  const [leads, valuations, contacts, searchProfiles] = await Promise.all([
     prisma.lead.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -46,8 +52,9 @@ export async function getRecentActivity() {
     }),
     prisma.valuationRequest.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
     prisma.contactRequest.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.savedSearch.findMany({ orderBy: { createdAt: "desc" }, take: 5 }),
   ]);
-  return { leads, valuations, contacts };
+  return { leads, valuations, contacts, searchProfiles };
 }
 
 export async function getAdminProperties() {
@@ -69,13 +76,14 @@ export async function getAdminProperty(id: string) {
 }
 
 export async function getAllRequests() {
-  const [leads, valuations, contacts] = await Promise.all([
+  const [leads, valuations, contacts, searchProfiles] = await Promise.all([
     prisma.lead.findMany({
       orderBy: { createdAt: "desc" },
       include: { property: { select: { title: true, slug: true } } },
     }),
     prisma.valuationRequest.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.contactRequest.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.savedSearch.findMany({ orderBy: { createdAt: "desc" } }),
   ]);
-  return { leads, valuations, contacts };
+  return { leads, valuations, contacts, searchProfiles };
 }

@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { IconDashboard, IconHouse, IconInbox, IconKey } from "@/components/icons";
+import { IconClock, IconDashboard, IconHouse, IconInbox, IconKey } from "@/components/icons";
 
 const items = [
   { href: "/admin", label: "Dashboard", Icon: IconDashboard, exact: true },
   { href: "/admin/immobilien", label: "Immobilien", Icon: IconHouse },
   { href: "/admin/anfragen", label: "Anfragen", Icon: IconInbox },
   { href: "/admin/blog", label: "Ratgeber", Icon: IconHouse },
+  { href: "/admin/oeffnungszeiten", label: "Öffnungszeiten", Icon: IconClock },
   { href: "/admin/schnittstellen", label: "Schnittstellen", Icon: IconKey },
 ];
 

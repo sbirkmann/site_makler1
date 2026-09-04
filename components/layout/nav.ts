@@ -45,7 +45,7 @@ export const mainNav: NavItem[] = [
     teaser: {
       title: "Suchprofil hinterlegen",
       text: "Passende Objekte erfahren Sie von uns, bevor sie öffentlich vermarktet werden.",
-      href: "/kontakt?anliegen=suchprofil",
+      href: "/suchprofil",
     },
   },
   {
