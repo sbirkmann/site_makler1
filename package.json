@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "prisma migrate deploy && node scripts/seed-if-empty.mjs && (tsx scripts/backfill-geocoding.ts &) && next start",
+    "start": "prisma migrate deploy && node scripts/seed-if-empty.mjs && node scripts/migrate-content.mjs && (tsx scripts/backfill-geocoding.ts &) && next start",
     "lint": "eslint",
     "db:up": "podman compose -f podman-compose.yml up -d",
     "db:down": "podman compose -f podman-compose.yml down",

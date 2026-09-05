@@ -57,23 +57,23 @@ export const mainNav: NavItem[] = [
         title: "Verkaufen",
         items: [
           { label: "Immobilie verkaufen", href: "/immobilie-verkaufen" },
-          { label: "Ablauf des Verkaufs", href: "/ratgeber/immobilie-verkaufen-ablauf" },
-          { label: "Benötigte Unterlagen", href: "/ratgeber/unterlagen-immobilienverkauf" },
+          { label: "Ablauf des Verkaufs", href: "/immobilie-verkaufen/ablauf" },
+          { label: "Benötigte Unterlagen", href: "/immobilie-verkaufen/unterlagen" },
         ],
       },
       {
         title: "Bewerten",
         items: [
           { label: "Kostenlose Bewertung", href: "/immobilienbewertung" },
-          { label: "Wie ein Wert entsteht", href: "/ratgeber/was-ist-meine-immobilie-wert" },
-          { label: "Energieausweis verstehen", href: "/ratgeber/energieausweis-verstehen" },
+          { label: "Wie ein Wert entsteht", href: "/immobilie-verkaufen/immobilienwert" },
+          { label: "Energieausweis verstehen", href: "/immobilie-verkaufen/energieausweis" },
         ],
       },
       {
         title: "Besondere Situationen",
         items: [
-          { label: "Immobilie geerbt", href: "/ratgeber/immobilie-geerbt-was-tun" },
-          { label: "Maklerprovision erklärt", href: "/ratgeber/maklerprovision-erklaert" },
+          { label: "Immobilie geerbt", href: "/immobilie-verkaufen/immobilie-geerbt" },
+          { label: "Maklerprovision erklärt", href: "/immobilie-verkaufen/maklerprovision" },
         ],
       },
     ],

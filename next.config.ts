@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { sellTopics } from "./lib/content/sell-topics";
 
 const nextConfig: NextConfig = {
   images: {
@@ -11,6 +12,14 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   poweredByHeader: false,
+  // Fruehere Ratgeber-Artikel sind jetzt Unterseiten von "Immobilie verkaufen".
+  async redirects() {
+    return sellTopics.map((t) => ({
+      source: `/ratgeber/${t.legacySlug}`,
+      destination: t.href,
+      permanent: true,
+    }));
+  },
   async headers() {
     return [
       {

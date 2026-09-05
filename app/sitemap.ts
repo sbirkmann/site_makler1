@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
 import { findAllPropertySlugs } from "@/lib/repositories/properties";
 import { findAllPostSlugs } from "@/lib/repositories/blog";
+import { sellTopics } from "@/lib/content/sell-topics";
 
 export const revalidate = 3600;
 // Zur Laufzeit erzeugen – der Build-Container hat keine Datenbankverbindung.
@@ -20,6 +21,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly",
       priority: 0.9,
     },
+    ...sellTopics.map((t) => ({
+      url: `${site.url}${t.href}`,
+      lastModified: now,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     {
       url: `${site.url}/immobilienbewertung`,
       lastModified: now,

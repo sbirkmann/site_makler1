@@ -196,6 +196,33 @@ body {
     text-transform: uppercase;
     color: var(--color-primary-500);
   }
+  /* Textlink in Versalien mit kurzer Akzentlinie (Inhaltsseiten) */
+  .link-caps {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-primary-800);
+    transition: color 0.2s ease;
+  }
+  .link-caps::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 1.75rem;
+    height: 2px;
+    background: var(--color-accent-400);
+    transform: translateX(-50%);
+    transition: width 0.25s var(--ease-out-quint);
+  }
+  .link-caps:hover { color: var(--color-primary-600); }
+  .link-caps:hover::after { width: 100%; }
   .lead {
     font-size: 1.25rem;
     font-weight: 300;

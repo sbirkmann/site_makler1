@@ -136,7 +136,7 @@ export default async function HomePage() {
         primaryLabel="Bewertung starten"
         primaryHref="/immobilienbewertung"
         secondaryLabel="So gehen wir vor"
-        secondaryHref="/ratgeber/was-ist-meine-immobilie-wert"
+        secondaryHref="/immobilie-verkaufen/immobilienwert"
         image="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80"
         imageAlt="Wohnraum mit Blick in den Garten"
       />

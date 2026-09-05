@@ -7,6 +7,7 @@ import { FAQ } from "@/components/marketing/FAQ";
 import { Container, Section } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { SellTopicsGrid } from "@/components/marketing/SellTopicsGrid";
 
 export const metadata: Metadata = {
   title: "Immobilie verkaufen in Köln, Bonn und dem Rheinland",
@@ -76,9 +77,11 @@ export default function SellPage() {
         </Container>
       </Section>
 
+      <SellTopicsGrid />
+
       <FAQ
         items={sellFaq}
-        tone="muted"
+        tone="default"
         eyebrow="Häufige Fragen"
         title="Was Eigentümer vor dem ersten Gespräch wissen wollen"
       />
