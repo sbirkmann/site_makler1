@@ -48,6 +48,11 @@ export function parsePropertySearchParams(params: RawSearchParams): PropertyQuer
     marketingType,
     propertyType: propertyType.length ? propertyType : undefined,
     city: first(params.ort),
+    // Umkreis in km; der Mittelpunkt wird in der Seite geokodiert nachgereicht.
+    radiusKm: (() => {
+      const r = num(params.umkreis);
+      return r && r > 0 ? Math.min(r, 200) : undefined;
+    })(),
     q: first(params.q),
     minPrice: num(params.preis_min),
     maxPrice: num(params.preis_max),
@@ -88,6 +93,6 @@ export function buildPropertyHref(
 }
 
 export function countActiveFilters(params: RawSearchParams): number {
-  const keys = ["marketing", "typ", "ort", "q", "preis_min", "preis_max", "zimmer", "flaeche"];
+  const keys = ["marketing", "typ", "ort", "umkreis", "q", "preis_min", "preis_max", "zimmer", "flaeche"];
   return keys.reduce((acc, key) => acc + (all(params[key]).length > 0 ? 1 : 0), 0);
 }

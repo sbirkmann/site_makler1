@@ -39,6 +39,10 @@ export interface PropertyQuery {
   marketingType?: MarketingType;
   propertyType?: PropertyType[];
   city?: string;
+  /** Umkreissuche: Mittelpunkt (aus Geocoding des Ortsnamens). */
+  center?: { latitude: number; longitude: number };
+  /** Radius in Kilometern; nur zusammen mit `center` wirksam. */
+  radiusKm?: number;
   q?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -59,7 +63,18 @@ function buildWhere(query: PropertyQuery): Prisma.PropertyWhereInput {
   if (query.propertyType?.length) where.propertyType = { in: query.propertyType };
   if (query.featuredOnly) where.featured = true;
 
-  if (query.city) {
+  // Umkreissuche schlaegt die Textsuche: liegt ein geokodierter Mittelpunkt
+  // vor, grenzt eine Bounding-Box grob ein (die exakte Distanz folgt weiter
+  // unten in `findProperties`). Ohne Radius bleibt es beim Textvergleich.
+  if (query.center && query.radiusKm) {
+    const { latitude, longitude } = query.center;
+    const latDelta = query.radiusKm / 111.32;
+    // Laengengrade ruecken zu den Polen hin zusammen.
+    const lonDelta =
+      query.radiusKm / (111.32 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.01));
+    where.latitude = { gte: latitude - latDelta, lte: latitude + latDelta };
+    where.longitude = { gte: longitude - lonDelta, lte: longitude + lonDelta };
+  } else if (query.city) {
     where.OR = [
       { city: { contains: query.city, mode: "insensitive" } },
       { region: { contains: query.city, mode: "insensitive" } },
@@ -107,24 +122,68 @@ function buildOrderBy(sort: PropertySort = "neueste"): Prisma.PropertyOrderByWit
   }
 }
 
+/** Entfernung zweier Koordinaten in Kilometern (Haversine). */
+export function distanceKm(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+): number {
+  const R = 6371;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 export async function findProperties(query: PropertyQuery) {
   const perPage = Math.min(Math.max(query.perPage ?? 9, 1), 48);
   const page = Math.max(query.page ?? 1, 1);
   const where = buildWhere(query);
+  const radius = query.center && query.radiusKm ? query.radiusKm : null;
 
-  const [items, total] = await Promise.all([
-    prisma.property.findMany({
-      where,
-      orderBy: buildOrderBy(query.sort),
-      select: propertyCardSelect,
-      skip: (page - 1) * perPage,
-      take: perPage,
-    }),
-    prisma.property.count({ where }),
-  ]);
+  // Ohne Umkreissuche paginiert die Datenbank. Mit Umkreissuche muss die
+  // Bounding-Box erst auf den echten Kreis reduziert werden – erst danach
+  // stimmen Gesamtzahl und Seitenschnitt.
+  if (!radius || !query.center) {
+    const [items, total] = await Promise.all([
+      prisma.property.findMany({
+        where,
+        orderBy: buildOrderBy(query.sort),
+        select: propertyCardSelect,
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+      prisma.property.count({ where }),
+    ]);
 
+    return {
+      items,
+      total,
+      page,
+      perPage,
+      pageCount: Math.max(Math.ceil(total / perPage), 1),
+    };
+  }
+
+  const center = query.center;
+  const candidates = await prisma.property.findMany({
+    where,
+    orderBy: buildOrderBy(query.sort),
+    select: propertyCardSelect,
+  });
+
+  const withinRadius = candidates.filter((item) => {
+    if (item.latitude == null || item.longitude == null) return false;
+    return (
+      distanceKm(center, { latitude: item.latitude, longitude: item.longitude }) <= radius
+    );
+  });
+
+  const total = withinRadius.length;
   return {
-    items,
+    items: withinRadius.slice((page - 1) * perPage, page * perPage),
     total,
     page,
     perPage,
@@ -222,7 +281,7 @@ export async function countProperties() {
  * die Obergrenze schuetzt vor uebergrossen Antworten.
  */
 export async function findPropertyMapMarkers(query: PropertyQuery, take = 300) {
-  return prisma.property.findMany({
+  const rows = await prisma.property.findMany({
     where: {
       ...buildWhere(query),
       latitude: { not: null },
@@ -250,6 +309,18 @@ export async function findPropertyMapMarkers(query: PropertyQuery, take = 300) {
     },
     take,
   });
+
+  // Die Bounding-Box aus `buildWhere` ist ein Quadrat; fuer die Karte wird
+  // sie hier auf den tatsaechlichen Kreis zurechtgeschnitten.
+  const center = query.center;
+  if (!center || !query.radiusKm) return rows;
+  const radius = query.radiusKm;
+  return rows.filter(
+    (row) =>
+      row.latitude != null &&
+      row.longitude != null &&
+      distanceKm(center, { latitude: row.latitude, longitude: row.longitude }) <= radius,
+  );
 }
 
 export type PropertyMapMarkerData = Awaited<ReturnType<typeof findPropertyMapMarkers>>[number];

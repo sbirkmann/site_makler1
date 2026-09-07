@@ -47,6 +47,7 @@ export function PropertySearch({
   const [tab, setTab] = useState<Tab>("");
   const [typ, setTyp] = useState("");
   const [ort, setOrt] = useState("");
+  const [umkreis, setUmkreis] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [preisMax, setPreisMax] = useState("");
   const [zimmer, setZimmer] = useState("");
@@ -62,6 +63,8 @@ export function PropertySearch({
     if (tab) sp.set("marketing", tab);
     if (typ) sp.set("typ", typ);
     if (ort) sp.set("ort", ort);
+    // Ohne Ort fehlt der Mittelpunkt – dann ist ein Radius bedeutungslos.
+    if (umkreis && ort) sp.set("umkreis", umkreis);
     if (preisMax) sp.set("preis_max", preisMax);
     if (zimmer) sp.set("zimmer", zimmer);
     const qs = sp.toString();
@@ -125,23 +128,46 @@ export function PropertySearch({
             <Chevron />
           </div>
 
-          {/* Ort */}
-          <div className="relative border-b border-line px-4 py-3.5 lg:flex-1 lg:border-b-0 lg:border-r lg:py-0">
+          {/* Ort als Freitext – der Mittelpunkt wird serverseitig geokodiert. */}
+          <div className="border-b border-line px-4 py-3.5 lg:flex-1 lg:border-b-0 lg:border-r lg:py-0">
             <label className="sr-only" htmlFor="hero-ort">
-              Ort oder Region
+              Ort oder Postleitzahl
             </label>
-            <select
+            <input
               id="hero-ort"
+              type="text"
               value={ort}
               onChange={(e) => setOrt(e.target.value)}
-              className={cn(bareSelect, "lg:h-12")}
-            >
-              <option value="">Ort aussuchen</option>
+              list="hero-ort-vorschlaege"
+              placeholder="Ort oder PLZ"
+              autoComplete="postal-code"
+              className="h-full w-full bg-transparent text-[0.9375rem] text-ink placeholder:text-ink-subtle focus:outline-none lg:h-12"
+            />
+            <datalist id="hero-ort-vorschlaege">
               {cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+                <option key={c} value={c} />
               ))}
+            </datalist>
+          </div>
+
+          {/* Umkreis */}
+          <div className="relative border-b border-line px-4 py-3.5 lg:w-[9.5rem] lg:shrink-0 lg:border-b-0 lg:border-r lg:py-0">
+            <label className="sr-only" htmlFor="hero-umkreis">
+              Umkreis
+            </label>
+            <select
+              id="hero-umkreis"
+              value={umkreis}
+              onChange={(e) => setUmkreis(e.target.value)}
+              disabled={!ort}
+              className={cn(bareSelect, "lg:h-12", !ort && "cursor-not-allowed opacity-55")}
+            >
+              <option value="">Umkreis</option>
+              <option value="5">+ 5 km</option>
+              <option value="10">+ 10 km</option>
+              <option value="25">+ 25 km</option>
+              <option value="50">+ 50 km</option>
+              <option value="100">+ 100 km</option>
             </select>
             <Chevron />
           </div>

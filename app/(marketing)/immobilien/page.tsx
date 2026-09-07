@@ -7,6 +7,8 @@ import {
   findPropertyMapMarkers,
 } from "@/lib/repositories/properties";
 import { countActiveFilters, parsePropertySearchParams, type RawSearchParams } from "@/lib/search-params";
+import { lookupPlaceCenter } from "@/lib/services/place-lookup";
+import type { PropertyQuery } from "@/lib/repositories/properties";
 import { formatArea, formatNumber, formatPrice, formatRooms } from "@/lib/utils";
 import { Container, Section } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/Button";
@@ -39,11 +41,24 @@ export const metadata: Metadata = {
 export const revalidate = 120;
 
 /**
+ * Filter aus der URL lesen und – falls ein Umkreis gewaehlt ist – den
+ * Ortsnamen in Koordinaten aufloesen. Ohne Treffer bleibt es beim
+ * Textvergleich auf Ort/Region/PLZ.
+ */
+async function resolveQuery(searchParams: RawSearchParams): Promise<PropertyQuery> {
+  const query = parsePropertySearchParams(searchParams);
+  if (!query.radiusKm || !query.city) return query;
+
+  const center = await lookupPlaceCenter(query.city);
+  return center ? { ...query, center } : query;
+}
+
+/**
  * Karte zu den aktuellen Filtern. Laeuft in einer eigenen Suspense-Grenze,
  * damit sie die Trefferliste nicht ausbremst.
  */
 async function PropertyMapSection({ searchParams }: { searchParams: RawSearchParams }) {
-  const query = parsePropertySearchParams(searchParams);
+  const query = await resolveQuery(searchParams);
   const rows = await findPropertyMapMarkers(query);
 
   const markers: MapMarker[] = rows.map((row) => ({
@@ -67,7 +82,7 @@ async function PropertyMapSection({ searchParams }: { searchParams: RawSearchPar
 }
 
 async function PropertyResults({ searchParams }: { searchParams: RawSearchParams }) {
-  const query = parsePropertySearchParams(searchParams);
+  const query = await resolveQuery(searchParams);
   const { items, total, page, pageCount, perPage } = await findProperties(query);
 
   const from = total === 0 ? 0 : (page - 1) * perPage + 1;

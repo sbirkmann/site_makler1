@@ -68,6 +68,7 @@ export function PropertyFilters({
   const [preisMax, setPreisMax] = useState(read("preis_max"));
   const [zimmer, setZimmer] = useState(read("zimmer"));
   const [flaeche, setFlaeche] = useState(read("flaeche"));
+  const [umkreis, setUmkreis] = useState(read("umkreis"));
 
   // Aendert sich die URL von aussen (Browser-Zurueck, geteilter Link), wird der
   // Formularzustand waehrend des Renderns nachgezogen – kein Effekt noetig.
@@ -82,6 +83,7 @@ export function PropertyFilters({
     setPreisMax(read("preis_max"));
     setZimmer(read("zimmer"));
     setFlaeche(read("flaeche"));
+    setUmkreis(read("umkreis"));
   }
 
   useEffect(() => {
@@ -103,6 +105,8 @@ export function PropertyFilters({
     if (preisMax) sp.set("preis_max", preisMax);
     if (zimmer) sp.set("zimmer", zimmer);
     if (flaeche) sp.set("flaeche", flaeche);
+    // Umkreis nur sinnvoll mit Ort – sonst fehlt der Mittelpunkt.
+    if (umkreis && ort) sp.set("umkreis", umkreis);
     const sort = searchParams.get("sort");
     if (sort) sp.set("sort", sort);
 
@@ -121,6 +125,7 @@ export function PropertyFilters({
     setPreisMax("");
     setZimmer("");
     setFlaeche("");
+    setUmkreis("");
     startTransition(() => {
       router.push("/immobilien", { scroll: false });
       setOpen(false);
@@ -188,22 +193,46 @@ export function PropertyFilters({
         </div>
       </div>
 
-      <div className="relative">
+      {/* Ort als Freitext: der Mittelpunkt wird serverseitig geokodiert,
+          dadurch funktionieren auch Orte ohne eigenes Objekt in der Liste. */}
+      <div>
         <label className={labelClass} htmlFor="filter-ort">
-          Ort / Region
+          Ort / PLZ
         </label>
-        <select
+        <input
           id="filter-ort"
+          type="text"
           value={ort}
           onChange={(e) => setOrt(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">Alle Orte</option>
+          list="filter-ort-vorschlaege"
+          placeholder="z. B. Köln oder 50667"
+          autoComplete="postal-code"
+          className="h-11 w-full rounded-[var(--radius-md)] border border-line-strong bg-surface px-3.5 text-[0.875rem] text-ink transition-colors focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/15"
+        />
+        <datalist id="filter-ort-vorschlaege">
           {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <option key={c} value={c} />
           ))}
+        </datalist>
+      </div>
+
+      <div className="relative">
+        <label className={labelClass} htmlFor="filter-umkreis">
+          Umkreis
+        </label>
+        <select
+          id="filter-umkreis"
+          value={umkreis}
+          onChange={(e) => setUmkreis(e.target.value)}
+          disabled={!ort}
+          className={cn(selectClass, !ort && "cursor-not-allowed opacity-55")}
+        >
+          <option value="">genauer Ort</option>
+          <option value="5">+ 5 km</option>
+          <option value="10">+ 10 km</option>
+          <option value="25">+ 25 km</option>
+          <option value="50">+ 50 km</option>
+          <option value="100">+ 100 km</option>
         </select>
         <Chevron />
       </div>
