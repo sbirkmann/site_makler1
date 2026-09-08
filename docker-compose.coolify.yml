@@ -15,7 +15,14 @@ services:
       GEOCODER_URL: ${GEOCODER_URL:-https://nominatim.openstreetmap.org/search}
     depends_on: [sftpgo]
     volumes: ["uploads:/app/public/uploads"]
-    networks: [default, coolify]
+    # Ohne Healthcheck bleibt ein haengender Container unbemerkt stehen und
+    # liefert dauerhaft Gateway Timeouts, statt neu gestartet zu werden.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
   sftpgo:
     image: drakkan/sftpgo:v2.6.6
     restart: unless-stopped
@@ -35,7 +42,6 @@ services:
       SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
     ports: ["2121:2121", "50000-50010:50000-50010"]
     volumes: ["ftp-imports:/imports"]
-    networks: [default, coolify]
   openimmo-importer:
     build: .
     restart: unless-stopped
@@ -51,10 +57,6 @@ services:
     # Der Importer traegt beim Start zuerst fehlende Koordinaten nach und
     # geht danach in die Dauerschleife des OpenImmo-Workers.
     command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm geocode:backfill && pnpm import:openimmo"]
-    networks: [default, coolify]
 volumes:
   ftp-imports: {}
   uploads: {}
-networks:
-  coolify:
-    external: true
