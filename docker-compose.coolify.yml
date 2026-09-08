@@ -23,6 +23,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    networks: [default, coolify]
   sftpgo:
     image: drakkan/sftpgo:v2.6.6
     restart: unless-stopped
@@ -42,6 +43,7 @@ services:
       SFTPGO_HTTPD__BINDINGS__0__PORT: "8080"
     ports: ["2121:2121", "50000-50010:50000-50010"]
     volumes: ["ftp-imports:/imports"]
+    networks: [default, coolify]
   openimmo-importer:
     build: .
     restart: unless-stopped
@@ -57,6 +59,10 @@ services:
     # Der Importer traegt beim Start zuerst fehlende Koordinaten nach und
     # geht danach in die Dauerschleife des OpenImmo-Workers.
     command: ["sh", "-c", "pnpm prisma migrate deploy && pnpm geocode:backfill && pnpm import:openimmo"]
+    networks: [default, coolify]
 volumes:
   ftp-imports: {}
   uploads: {}
+networks:
+  coolify:
+    external: true
